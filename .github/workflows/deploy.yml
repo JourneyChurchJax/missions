@@ -1,0 +1,37 @@
+name: Deploy to missions.journeychurch.org
+
+# Every push to main uploads the public/ folder to SiteGround over encrypted FTP (FTPS).
+# Only changed files are sent. You can also run it by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Upload to SiteGround
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./public/
+          # Folder on the server, relative to where the FTP account lands you.
+          # Set it as a repository VARIABLE named FTP_SERVER_DIR (for example public_html/).
+          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.DS_Store
+            config.php
