@@ -16,3 +16,7 @@ node_modules/
 vendor/
 dist/
 .ftp-deploy-sync-state.json
+
+# Database and uploads live on the server only
+data/
+*.sqlite

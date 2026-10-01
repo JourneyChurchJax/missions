@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview();
+require_preview('staff');
 page_open('Applications');
 admin_header('apps');
 $sel = $applicants[0];

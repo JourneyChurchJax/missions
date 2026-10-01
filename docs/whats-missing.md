@@ -1,3 +1,11 @@
+# Build plan
+
+- [x] **Phase 1** (Oct 1, 2026): database, trips (create, copy, cancel), team and full profiles, tasks with uploads and info checks, goals, meetings and attendance, documents with must-read tracking, trip guide, flights and itinerary, announcements, budget, printable reports (roster, emergency, medical, rooming, shirts, fundraising) with CSV
+- [ ] **Phase 2**: applications, references, deposits
+- [ ] **Phase 3**: gifts, checks and cash, expenses, donors, statements, traveler payments
+- [ ] **Phase 4**: email and text, parent view, trip packet PDF, check-in, incident log, calendar feeds, two-way chat
+- [ ] **Phase 5**: Stripe, Planning Center, public fundraising pages, e-signatures, background checks, AFC flight sync
+
 # What's missing (as of October 1, 2026)
 
 The preview has every page, but it only shows sample data. Below is everything still needed to fully replace ManagedMissions, plus what would make travelers feel at ease.

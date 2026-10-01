@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview();
+require_preview('staff');
 page_open('Giving');
 admin_header('giving');
 ?>
@@ -11,7 +11,7 @@ admin_header('giving');
   </div>
 
   <section class="g4 lead">
-    <div class="tile dark" style="padding:26px"><div class="k">Raised this season</div><div class="disp" style="font-size:64px"><?= money(array_sum(array_column($trips, 'raised'))) ?></div><div style="color:rgba(247,244,240,.85);font-size:15px">Across Israel and Belize</div></div>
+    <div class="tile dark" style="padding:26px"><div class="k">Raised this season</div><div class="disp" style="font-size:64px"><?= money((float)val('SELECT COALESCE(SUM(raised),0) FROM members')) ?></div><div style="color:rgba(247,244,240,.85);font-size:15px">Across Israel and Belize</div></div>
     <div class="tile"><div class="k">This week</div><div class="disp v">$1,420</div><div class="muted small">14 gifts</div></div>
     <div class="tile"><div class="k">Monthly givers</div><div class="disp v">11</div><div class="muted small">$640 a month</div></div>
     <div class="tile"><div class="k">Fees donors covered</div><div class="disp v">82%</div><div class="muted small">of card gifts</div></div>

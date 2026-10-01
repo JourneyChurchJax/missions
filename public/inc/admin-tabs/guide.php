@@ -7,7 +7,7 @@ $filled = count(array_filter(GUIDE_SECTIONS, fn($l, $k) => !is_placeholder($g[$k
   <?= csrf() ?><input type="hidden" name="action" value="guide_save"><input type="hidden" name="trip_id" value="<?= $id ?>">
   <div class="bar-head">
     <div><strong style="font-size:18px">Trip guide</strong><div class="muted small"><?= $filled ?> of <?= count(GUIDE_SECTIONS) ?> sections finished · anything in [brackets] shows travelers it's still coming · one item per line becomes a list</div></div>
-    <div style="display:flex;gap:10px"><a class="btn" href="/trip/guide.php" target="_blank">See what travelers see</a><button class="btn btn-primary" type="submit">Save guide</button></div>
+    <div style="display:flex;gap:10px"><a class="btn" href="/trip/guide.php?trip=<?= $id ?>" target="_blank">See what travelers see</a><button class="btn btn-primary" type="submit">Save guide</button></div>
   </div>
   <div class="guide-grid">
   <?php foreach (GUIDE_SECTIONS as $k => $label): $body = $g[$k]['body'] ?? ''; ?>
