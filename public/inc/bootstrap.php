@@ -28,12 +28,14 @@ function initials(string $name): string {
 
 // Preview gate. Until real sign-in with Planning Center is built, the whole site sits behind one
 // preview password set in config.php ('preview_password' => '...').
-function require_preview(): void {
+function require_preview(?string $view = null): void {
     global $config;
-    if (!empty($_SESSION['preview_ok'])) return;
+    if (!empty($_SESSION['preview_ok'])) { if ($view) $_SESSION['view'] = $view; return; }
     header('Location: /signin.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/'));
     exit;
 }
 
+require __DIR__ . '/db.php';
+require __DIR__ . '/models.php';
 require __DIR__ . '/data.php';
 require __DIR__ . '/layout.php';

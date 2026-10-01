@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
 <meta name="robots" content="noindex, nofollow">
 <title>Sign in · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=3">
+<link rel="stylesheet" href="/assets/app.css?v=4">
 </head>
 <body>
 <main class="gate">
