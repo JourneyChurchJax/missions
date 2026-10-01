@@ -244,3 +244,17 @@ details.edit[open]{flex-basis:100%}
 .post{padding:16px 18px;display:flex;flex-direction:column;gap:6px}
 .post+.post{box-shadow:inset 0 1px 0 var(--sand)}
 .empty{padding:28px 18px;text-align:center;color:var(--muted)}
+
+/* ---------- Photos ---------- */
+.trip .media img,.gallery.photos img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.trip .media.has-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(5,5,5,0) 55%,rgba(5,5,5,.35))}
+.trip .media.has-photo .badge{z-index:1}
+.gallery.photos>div{padding:0;background:var(--sand)}
+.gallery.photos>div:first-child{background:var(--ink)}
+.hero.has-photo{--muted-dark:rgba(247,244,240,.88);background:linear-gradient(to bottom,rgba(5,5,5,.45),rgba(5,5,5,.85)),var(--photo) center/cover no-repeat;min-height:240px;justify-content:space-between}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.photo-grid figure{margin:0;position:relative;aspect-ratio:3/2;border-radius:var(--r-md);overflow:hidden;background:var(--sand)}
+.photo-grid img{width:100%;height:100%;object-fit:cover}
+.photo-grid figcaption{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;justify-content:flex-end}
+.photo-grid .cover{position:absolute;top:8px;left:8px;background:rgba(247,244,240,.92);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.photo-grid button{border:0;border-radius:999px;background:rgba(247,244,240,.92);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer}

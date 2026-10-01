@@ -3,7 +3,7 @@
 
 // ---------- Who is acting (preview: staff or a chosen traveler) ----------
 function acting_person_id(): ?int {
-    if (!empty($_SESSION['person_id'])) return (int)$_SESSION['person_id'];
+    if (!empty($_SESSION['person_id']) && val('SELECT COUNT(*) FROM members WHERE person_id = ?', [(int)$_SESSION['person_id']])) return (int)$_SESSION['person_id'];
     $id = val("SELECT p.id FROM people p JOIN members m ON m.person_id = p.id WHERE m.role = 'traveler' ORDER BY p.id LIMIT 1");
     return $id ? (int)$id : null;
 }
@@ -113,7 +113,9 @@ function trip_alerts(array $trip): array {
     $n = max(1, count(travelers($id)));
     $per = trip_budget($id) / $n;
     if ($per > 0 && abs($per - (float)$trip['cost_per_person']) > 1) $alerts[] = ['Goal is ' . money((float)$trip['cost_per_person']) . ' a person', 'The budget works out to ' . money($per), "/admin/trip.php?id=$id&tab=budget"];
-    foreach (travelers($id) as $m) if (!passport_ok($m, $trip)) $alerts[] = [full_name($m) . ' has no valid passport on file', 'Passport must be valid through ' . fdate($trip['passport_valid_through'] ?: $trip['end_date']), "/admin/trip.php?id=$id&tab=team"];
+    $missing = array_values(array_filter(travelers($id), fn($m) => !passport_ok($m, $trip)));
+    if (count($missing) === 1) $alerts[] = [full_name($missing[0]) . ' has no valid passport on file', 'Must be valid through ' . fdate($trip['passport_valid_through'] ?: $trip['end_date']), "/admin/trip.php?id=$id&tab=team"];
+    elseif ($missing) $alerts[] = [count($missing) . ' travelers need a valid passport', implode(', ', array_map('full_name', array_slice($missing, 0, 3))) . (count($missing) > 3 ? ' and more' : ''), "/admin/reports.php?trip=$id&view=readiness"];
     $unflown = val("SELECT COUNT(*) FROM flights WHERE trip_id = ? AND (flight_no IS NULL OR flight_no = '' OR flight_no LIKE '[%')", [$id]);
     if ($unflown) $alerts[] = ['Flights not booked yet', 'Add flight numbers when the group is ticketed', "/admin/trip.php?id=$id&tab=travel"];
     return $alerts;
@@ -130,3 +132,10 @@ function guide(int $trip_id): array {
 }
 function lines(?string $text): array { return array_values(array_filter(array_map('trim', explode("\n", (string)$text)), 'strlen')); }
 function is_placeholder(?string $s): bool { return $s === null || trim($s) === '' || preg_match('/^\[.*\]$/s', trim($s)) === 1; }
+
+// ---------- Trip photos ----------
+function trip_photos(int $trip_id): array {
+    return array_map(fn($f) => ['id' => (int)$f['id'], 'src' => $f['url'] ?: '/file.php?id=' . $f['id'], 'title' => $f['title']],
+        all("SELECT * FROM files WHERE trip_id = ? AND kind = 'photo' ORDER BY id", [$trip_id]));
+}
+function trip_cover(int $trip_id): ?string { $p = trip_photos($trip_id); return $p[0]['src'] ?? null; }

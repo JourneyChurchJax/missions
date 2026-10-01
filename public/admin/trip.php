@@ -14,8 +14,9 @@ page_open($t['name'] . ' · ' . $tabs[$tab]);
 admin_header('trips');
 ?>
 <main class="main" style="padding-top:24px">
-  <section class="hero">
-    <span class="ghost" style="right:-20px;bottom:-40px;font-size:170px"><?= e(strtoupper($t['name'])) ?></span>
+  <?php $cover = trip_cover($id); ?>
+  <section class="hero<?= $cover ? ' has-photo' : '' ?>"<?= $cover ? ' style="--photo:url(\'' . e($cover) . '\')"' : '' ?>>
+    <?php if (!$cover): ?><span class="ghost" style="right:-20px;bottom:-40px;font-size:170px"><?= e(strtoupper($t['name'])) ?></span><?php endif; ?>
     <a href="/admin/" style="position:relative;color:var(--muted-dark);font-size:14px;text-decoration:none">‹ All trips</a>
     <div style="position:relative;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:6px">

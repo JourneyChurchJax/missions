@@ -237,6 +237,45 @@ switch ($a) {
         update('trips', $trip_id, ['cost_per_person' => round(trip_budget($trip_id) / $n, 2)]);
         flash('Goal per person now matches the budget'); back();
 
+    // ---------------- Demo data and photos ----------------
+    case 'demo_toggle':
+        need_staff($staff);
+        $on = post('demo') === '1';
+        save_site_settings(['demo' => $on]);
+        unset($_SESSION['person_id']);
+        flash($on ? 'Demo data is on. Your real data is safe and untouched.' : 'Demo data is off. You are back to your real data.');
+        header('Location: /admin/settings.php?s=demo'); exit;
+
+    case 'demo_reset':
+        need_staff($staff);
+        foreach (['', '-wal', '-shm'] as $suffix) if (is_file(demo_db_path() . $suffix)) unlink(demo_db_path() . $suffix);
+        unset($_SESSION['person_id']);
+        flash('Demo data reset to the original sample');
+        header('Location: /admin/settings.php?s=demo'); exit;
+
+    case 'photo_upload':
+        need_staff($staff);
+        $n = 0;
+        $files = $_FILES['photos'] ?? null;
+        if ($files && is_array($files['name'])) {
+            foreach ($files['name'] as $i => $name) {
+                if ($files['error'][$i] === UPLOAD_ERR_NO_FILE) continue;
+                $_FILES['one'] = ['name' => $name, 'type' => $files['type'][$i], 'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]];
+                $fid = save_upload('one', $trip_id, null, pathinfo($name, PATHINFO_FILENAME), 'photo', ['visible' => 1]);
+                if ($fid) { $mime = val('SELECT mime FROM files WHERE id = ?', [$fid]); if (!str_starts_with((string)$mime, 'image/')) { delete_row('files', $fid); continue; } $n++; }
+            }
+        }
+        if ($n) log_activity($trip_id, "Added $n trip photo" . ($n > 1 ? 's' : ''));
+        flash($n ? "Added $n photo" . ($n > 1 ? 's' : '') : 'Choose one or more photos first.'); back();
+
+    case 'photo_first':
+        need_staff($staff);
+        // Make this photo the cover by giving it the lowest id order: move others after it
+        $f = one("SELECT * FROM files WHERE id = ? AND kind = 'photo'", [$id]);
+        if ($f) { $row = $f; unset($row['id']); $new = insert('files', $row); delete_row('files', $id);
+            foreach (all("SELECT * FROM files WHERE trip_id = ? AND kind = 'photo' AND id <> ? ORDER BY id", [$f['trip_id'], $new]) as $o) { $r = $o; unset($r['id']); insert('files', $r); delete_row('files', (int)$o['id']); } }
+        flash('Cover photo set'); back();
+
     default:
         flash('Unknown action'); back();
 }

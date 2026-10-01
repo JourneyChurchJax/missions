@@ -52,6 +52,27 @@ $v = fn($k) => e($t[$k] ?? '');
       <?php endforeach; ?>
     </div>
   </form>
+
+  <?php $photos = trip_photos((int)$t['id']); ?>
+  <section class="tile xl" style="gap:16px" id="photos">
+    <div><strong style="font-size:18px">Trip photos</strong><div class="muted small">The first photo is the cover on the trips page and the trip banner. Travelers see up to five on their trip page.</div></div>
+    <?php if ($photos): ?>
+    <div class="photo-grid">
+      <?php foreach ($photos as $i => $ph): ?>
+        <figure><img src="<?= e($ph['src']) ?>" alt="<?= e($ph['title']) ?>" loading="lazy"><?php if ($i === 0): ?><span class="cover">Cover</span><?php endif; ?>
+          <figcaption>
+            <?php if ($i > 0): ?><form method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="photo_first"><input type="hidden" name="id" value="<?= $ph['id'] ?>"><button type="submit">Make cover</button></form><?php endif; ?>
+            <form method="post" action="/action.php" onsubmit="return confirm('Remove this photo?')"><?= csrf() ?><input type="hidden" name="action" value="file_delete"><input type="hidden" name="id" value="<?= $ph['id'] ?>"><button type="submit">Remove</button></form>
+          </figcaption></figure>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+    <form class="form" method="post" action="/action.php" enctype="multipart/form-data" style="grid-template-columns:1fr auto;align-items:end">
+      <?= csrf() ?><input type="hidden" name="action" value="photo_upload"><input type="hidden" name="trip_id" value="<?= (int)$t['id'] ?>">
+      <label class="lab">Add photos (choose several at once)<input type="file" name="photos[]" accept="image/*" multiple></label>
+      <button class="btn btn-dark" type="submit">Upload</button>
+    </form>
+  </section>
   <?php endif; ?>
 </main>
 <?php page_close(); ?>

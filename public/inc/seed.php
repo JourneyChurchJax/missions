@@ -1,14 +1,10 @@
 <?php
-// First-run data. Belize uses real trip details (no private personal data). Israel and its people are samples.
+// Starting data.
+//   seed()      REAL data: only facts Journey already has (Belize details, Corey and Thomas, Israel dates). No sample people or amounts.
+//   seed_demo() DEMO data: both trips fully filled in, sample travelers, progress, updates and photos. Turned on in Settings.
 
-function seed(PDO $pdo): void {
-    $now = now();
-    $person = function (string $first, string $last, array $extra = []) use ($now): int {
-        return insert('people', ['first_name' => $first, 'last_name' => $last, 'created_at' => $now] + $extra);
-    };
-
-    // ---- Belize (real) ----
-    $bz = insert('trips', [
+function seed_belize_trip(string $now): int {
+    return insert('trips', [
         'slug' => 'belize', 'name' => 'Belize', 'public_name' => 'Belize 2027', 'city' => 'Belize City', 'country' => 'Belize',
         'partner' => 'Adventures in Missions', 'start_date' => '2027-06-19', 'end_date' => '2027-06-25',
         'description' => 'We are joining Adventures in Missions to serve alongside their ministry partners, reaching communities in Belize through their kids and families, showing them the love of Jesus, encouraging them to walk in faith, and growing together as the body of Christ.',
@@ -16,78 +12,185 @@ function seed(PDO $pdo): void {
         'cost_per_person' => 1900, 'max_team' => 12, 'app_deadline' => '2027-01-05', 'status' => 'active',
         'passport_valid_through' => '2027-12-25', 'created_at' => $now,
     ]);
-    $corey = $person('Corey', 'Rees');
-    $thomas = $person('Thomas', 'Sereno', ['passport_expires' => '2034-02-01', 'ec1_name' => '[On file]', 'meds' => '[On file]']);
-    insert('members', ['trip_id' => $bz, 'person_id' => $corey, 'role' => 'leader', 'traveling' => 1, 'raised' => 600, 'created_at' => $now]);
-    insert('members', ['trip_id' => $bz, 'person_id' => $thomas, 'role' => 'traveler', 'traveling' => 1, 'raised' => 640, 'created_at' => $now]);
-
-    foreach ([['Lodging, food and transportation', 'MISC', 'Adventures in Missions', 945, 2, 1, '2027-04-19'],
-              ['Block party', 'MISC', 'God Cares Outreach', 650, 1, 0, '2027-06-19'],
-              ['Home visits', 'MISC', 'God Cares Outreach', 30, 18, 0, '2027-06-19'],
-              ['Feeding program', 'MISC', 'God Cares Outreach', 300, 1, 0, '2027-06-19'],
-              ["Children's home VBS food", 'MISC', 'God Cares Outreach', 300, 2, 0, '2027-06-19'],
+}
+function seed_belize_budget(int $bz): void {
+    foreach ([['Lodging, food and transportation', 'Lodging', 'Adventures in Missions', 945, 2, 1, '2027-04-19'],
+              ['Block party', 'Ministry', 'God Cares Outreach', 650, 1, 0, '2027-06-19'],
+              ['Home visits', 'Ministry', 'God Cares Outreach', 30, 18, 0, '2027-06-19'],
+              ['Feeding program', 'Ministry', 'God Cares Outreach', 300, 1, 0, '2027-06-19'],
+              ["Children's home VBS food", 'Meals/Food', 'God Cares Outreach', 300, 2, 0, '2027-06-19'],
               ['Airfare', 'Airfare', 'AFC Travel / American Airlines', 851, 2, 1, '2027-06-19']] as [$d, $ty, $v, $u, $qty, $per, $dt]) {
         insert('budget', ['trip_id' => $bz, 'description' => $d, 'type' => $ty, 'vendor' => $v, 'unit_cost' => $u, 'qty' => $qty, 'per_traveler' => $per, 'est_date' => $dt]);
     }
-    foreach ([['2026-12-19', 10], ['2027-02-07', 50], ['2027-03-14', 100]] as [$d, $p]) {
-        insert('goals', ['trip_id' => $bz, 'due_date' => $d, 'kind' => 'percent', 'amount' => $p]);
-    }
-    $t_pass = insert('tasks', ['trip_id' => $bz, 'title' => 'Upload a passport copy', 'description' => 'A clear photo of the photo page.', 'type' => 'upload', 'due_date' => '2026-11-15', 'allow_self' => 1, 'created_at' => $now]);
-    $t_coc = insert('tasks', ['trip_id' => $bz, 'title' => 'Sign the code of conduct', 'description' => 'Read it in Documents, then mark it signed.', 'type' => 'traveler', 'due_date' => '2026-12-01', 'allow_self' => 1, 'created_at' => $now]);
-    insert('tasks', ['trip_id' => $bz, 'title' => 'Confirm your name and birth date', 'description' => 'Must match your passport exactly before airfare is ticketed.', 'type' => 'verify', 'due_date' => '2027-01-15', 'allow_self' => 1, 'created_at' => $now]);
-    $t_waiver = insert('tasks', ['trip_id' => $bz, 'title' => 'Sign the liability waiver', 'type' => 'traveler', 'due_date' => '2026-10-15', 'allow_self' => 1, 'created_at' => $now]);
-    $t_ec = insert('tasks', ['trip_id' => $bz, 'title' => 'Add your emergency contacts', 'type' => 'traveler', 'due_date' => '2026-10-15', 'allow_self' => 1, 'created_at' => $now]);
-    insert('tasks', ['trip_id' => $bz, 'title' => 'Book group airfare with AFC Travel', 'type' => 'leader', 'due_date' => '2027-02-01', 'created_at' => $now]);
-    foreach ([$corey, $thomas] as $p) {
-        insert('task_done', ['task_id' => $t_waiver, 'person_id' => $p, 'done_at' => '2026-09-12 10:00:00']);
-        insert('task_done', ['task_id' => $t_ec, 'person_id' => $p, 'done_at' => '2026-09-12 10:05:00']);
-    }
-    $m = insert('meetings', ['trip_id' => $bz, 'title' => 'Team meeting', 'starts_at' => '2026-11-09 12:30:00', 'ends_at' => '2026-11-09 14:00:00', 'location' => '[Location]', 'notes' => 'Bring your passport if you have not uploaded it yet.']);
-    foreach ([['Tentative Belize ministry schedule', 'Updated by Corey', 0], ['Missions code of conduct', 'Read and sign', 1], ['Missions trip liability waiver', 'Read and sign', 1], ['AIM 5 objectives', 'From Adventures in Missions', 0], ['Belize country guide', 'Money, weather, what to pack', 0]] as [$title, $note, $ack]) {
+    foreach ([['2026-12-19', 10], ['2027-02-07', 50], ['2027-03-14', 100]] as [$d, $p]) insert('goals', ['trip_id' => $bz, 'due_date' => $d, 'kind' => 'percent', 'amount' => $p]);
+}
+function seed_tasks(int $trip, string $now, string $shift = '+0 days'): array {
+    $d = fn($x) => date('Y-m-d', strtotime("$x $shift"));
+    return [
+        'waiver' => insert('tasks', ['trip_id' => $trip, 'title' => 'Sign the liability waiver', 'type' => 'traveler', 'due_date' => $d('2026-10-15'), 'allow_self' => 1, 'created_at' => $now]),
+        'ec' => insert('tasks', ['trip_id' => $trip, 'title' => 'Add your emergency contacts', 'description' => 'Add them on your profile.', 'type' => 'traveler', 'due_date' => $d('2026-10-15'), 'allow_self' => 1, 'created_at' => $now]),
+        'passport' => insert('tasks', ['trip_id' => $trip, 'title' => 'Upload a passport copy', 'description' => 'A clear photo of the photo page.', 'type' => 'upload', 'due_date' => $d('2026-11-15'), 'allow_self' => 1, 'created_at' => $now]),
+        'coc' => insert('tasks', ['trip_id' => $trip, 'title' => 'Sign the code of conduct', 'description' => 'Read it in Documents, then tap I agree.', 'type' => 'traveler', 'due_date' => $d('2026-12-01'), 'allow_self' => 1, 'created_at' => $now]),
+        'verify' => insert('tasks', ['trip_id' => $trip, 'title' => 'Confirm your name and birth date', 'description' => 'Must match your passport exactly before airfare is ticketed.', 'type' => 'verify', 'due_date' => $d('2027-01-15'), 'allow_self' => 1, 'created_at' => $now]),
+        'parent' => insert('tasks', ['trip_id' => $trip, 'title' => 'Parent consent form', 'description' => 'A parent or guardian signs this for travelers under 18.', 'type' => 'upload', 'due_date' => $d('2027-02-01'), 'minors_only' => 1, 'allow_self' => 1, 'created_at' => $now]),
+        'air' => insert('tasks', ['trip_id' => $trip, 'title' => 'Book group airfare', 'type' => 'leader', 'due_date' => $d('2027-02-01'), 'created_at' => $now]),
+    ];
+}
+
+function seed(PDO $pdo): void {
+    $now = now();
+    $bz = seed_belize_trip($now);
+    $corey = insert('people', ['first_name' => 'Corey', 'last_name' => 'Rees', 'created_at' => $now]);
+    $thomas = insert('people', ['first_name' => 'Thomas', 'last_name' => 'Sereno', 'created_at' => $now]);
+    insert('members', ['trip_id' => $bz, 'person_id' => $corey, 'role' => 'leader', 'traveling' => 1, 'raised' => 0, 'created_at' => $now]);
+    insert('members', ['trip_id' => $bz, 'person_id' => $thomas, 'role' => 'traveler', 'traveling' => 1, 'raised' => 0, 'created_at' => $now]);
+    seed_belize_budget($bz);
+    seed_tasks($bz, $now);
+    foreach ([['Tentative Belize ministry schedule', '', 0], ['Missions code of conduct', 'Read and agree', 1], ['Missions trip liability waiver', 'Read and agree', 1], ['AIM 5 objectives', 'From Adventures in Missions', 0], ['Belize country guide', '', 0]] as [$title, $note, $ack]) {
         insert('files', ['trip_id' => $bz, 'title' => $title, 'note' => $note, 'visible' => 1, 'must_ack' => $ack, 'kind' => 'doc', 'created_at' => $now]);
     }
-    foreach ([['Pre-trip training guide', ''], ['AIM ministry interaction guidelines', ''], ['AIM fundraising guide', ''], ['Applying for a passport', 'Clerk of Courts or the post office']] as [$title, $note]) {
-        insert('files', ['trip_id' => $bz, 'title' => $title, 'note' => $note, 'url' => '', 'visible' => 1, 'kind' => 'link', 'created_at' => $now]);
+    foreach (['Pre-trip training guide', 'AIM ministry interaction guidelines', 'AIM fundraising guide', 'Applying for a passport'] as $title) {
+        insert('files', ['trip_id' => $bz, 'title' => $title, 'url' => '', 'visible' => 1, 'kind' => 'link', 'created_at' => $now]);
     }
-    $guide = [
-        'lodging' => "[Where the team sleeps: name, address and phone of the lodging]",
-        'contacts' => "Trip leader: Corey Rees\nPartner: Adventures in Missions [in-country contact name and phone]\nJourney Church office: [phone]",
-        'packing' => "Passport and a copy of it\nModest clothes for ministry: [what to wear]\nComfortable closed-toe shoes\nRefillable water bottle\nSunscreen and bug spray\nBible and journal\nAny medications in their original bottles",
-        'wear' => "[Dress guidelines for ministry days, church and free time]",
-        'money' => "[Currency, how much spending money to bring, where to exchange, cards that work]",
-        'weather' => "[Typical June weather in Belize City]",
-        'power' => "[Plug type and voltage]",
-        'phone' => "[International plan, Wi-Fi at the lodging, how families can reach the team]",
-        'health' => "[Vaccines to consider, travel insurance details, water and food safety]",
-        'entry' => "Passport valid through December 25, 2027.\n[Entry requirements for U.S. citizens]",
-        'safety' => "[What to do in an emergency, buddy system, who to call]",
-        'airport' => "[Airport, terminal, meeting spot and time on June 19]",
+    foreach (GUIDE_SECTIONS as $k => $label) insert('guide', ['trip_id' => $bz, 'section' => $k, 'body' => '[' . $label . ': add details]', 'updated_at' => $now]);
+    q("UPDATE guide SET body = ? WHERE trip_id = ? AND section = 'entry'", ["Passport valid through December 25, 2027.\n[Entry requirements for U.S. citizens]", $bz]);
+    q("UPDATE guide SET body = ? WHERE trip_id = ? AND section = 'contacts'", ["Trip leader: Corey Rees\n[Adventures in Missions in-country contact]\n[Journey Church office phone]", $bz]);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'out', 'airline' => 'American Airlines', 'flight_no' => '[TBD]', 'from_code' => 'JAX', 'to_code' => 'BZE', 'departs_at' => '2027-06-19 00:00:00', 'notes' => 'Booked through AFC Travel']);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'home', 'airline' => 'American Airlines', 'flight_no' => '[TBD]', 'from_code' => 'BZE', 'to_code' => 'JAX', 'departs_at' => '2027-06-25 00:00:00']);
+    $il = insert('trips', ['slug' => 'israel', 'name' => 'Israel', 'public_name' => 'Israel 2027', 'country' => 'Israel', 'start_date' => '2027-05-19', 'end_date' => '2027-05-28', 'status' => 'active', 'created_at' => $now]);
+    insert('activity', ['trip_id' => $bz, 'who' => 'Setup', 'what' => 'Brought the Belize trip over from ManagedMissions', 'created_at' => $now]);
+    insert('activity', ['trip_id' => $il, 'who' => 'Setup', 'what' => 'Created the Israel trip with its dates', 'created_at' => $now]);
+}
+
+function seed_demo(PDO $pdo): void {
+    $now = now();
+    $person = fn(array $p) => insert('people', $p + ['created_at' => $now]);
+    $member = fn(int $t, int $p, string $role, float $raised, array $x = []) => insert('members', ['trip_id' => $t, 'person_id' => $p, 'role' => $role, 'traveling' => 1, 'raised' => $raised, 'created_at' => $now] + $x);
+    $photo = function (int $t, string $file, string $title) use ($now) { insert('files', ['trip_id' => $t, 'title' => $title, 'url' => "/assets/demo/$file", 'visible' => 1, 'kind' => 'photo', 'created_at' => $now]); };
+    $done = fn(int $task, int $p, string $when) => insert('task_done', ['task_id' => $task, 'person_id' => $p, 'done_at' => $when]);
+
+    // ================= Belize =================
+    $bz = seed_belize_trip($now);
+    seed_belize_budget($bz);
+    q('UPDATE budget SET qty = 8 WHERE trip_id = ? AND per_traveler = 0 AND description = ?', [$bz, "Children's home VBS food"]);
+    foreach ([['belize-1.jpg', 'Maya ruins'], ['belize-4.jpg', 'Caribbean shallows'], ['belize-3.jpg', 'Jungle river'], ['belize-2.jpg', 'Beach house'], ['belize-5.jpg', 'Great Blue Hole'], ['belize-6.jpg', 'Waterfall']] as [$f, $title]) $photo($bz, $f, $title);
+    $team = [
+        ['Corey', 'Rees', 'leader', 1900, ['passport_expires' => '2031-04-02', 'ec1_name' => 'Dana Rees', 'ec1_rel' => 'Spouse', 'ec1_phone' => '(904) 555-0110', 'shirt' => "Men's L", 'gender' => 'male', 'phone' => '(904) 555-0101', 'email' => 'corey@example.com'], ['room' => 'Guys', 'seat' => 'Van 1', 'confirmation' => 'KXQ4TR']],
+        ['Thomas', 'Sereno', 'traveler', 1260, ['passport_expires' => '2034-02-01', 'ec1_name' => 'Sample Contact', 'ec1_rel' => 'Spouse', 'ec1_phone' => '(904) 555-0120', 'shirt' => "Men's 3XL", 'gender' => 'male', 'meds' => 'Two daily prescriptions', 'email' => 'thomas@example.com'], ['room' => 'Guys', 'seat' => 'Van 1', 'confirmation' => 'KXQ4TR']],
+        ['Maya', 'Bennett', 'leader', 1900, ['passport_expires' => '2030-08-12', 'ec1_name' => 'Chris Bennett', 'ec1_rel' => 'Spouse', 'ec1_phone' => '(904) 555-0130', 'shirt' => "Women's M", 'gender' => 'female', 'allergies' => 'Penicillin'], ['room' => 'Girls', 'seat' => 'Van 2', 'confirmation' => 'KXQ4TR']],
+        ['Elijah', 'Grant', 'traveler', 1525, ['passport_expires' => '2029-01-20', 'ec1_name' => 'Renee Grant', 'ec1_rel' => 'Parent/Guardian', 'ec1_phone' => '(904) 555-0140', 'shirt' => "Men's M", 'gender' => 'male', 'birth_date' => '2010-05-04', 'diet' => 'Vegetarian'], ['room' => 'Guys', 'seat' => 'Van 1']],
+        ['Sofia', 'Ramirez', 'traveler', 980, ['passport_expires' => '2032-03-15', 'ec1_name' => 'Ana Ramirez', 'ec1_rel' => 'Parent/Guardian', 'ec1_phone' => '(904) 555-0150', 'shirt' => "Women's S", 'gender' => 'female', 'birth_date' => '2009-11-22', 'allergies' => 'Peanuts (carries an EpiPen)'], ['room' => 'Girls', 'seat' => 'Van 2']],
+        ['Noah', 'Whitfield', 'traveler', 640, ['shirt' => "Men's XL", 'gender' => 'male'], ['room' => 'Guys', 'seat' => 'Van 2']],
+        ['Grace', 'Okafor', 'traveler', 1900, ['passport_expires' => '2033-06-30', 'ec1_name' => 'Ifeoma Okafor', 'ec1_rel' => 'Parent/Guardian', 'ec1_phone' => '(904) 555-0170', 'shirt' => "Women's M", 'gender' => 'female'], ['room' => 'Girls', 'seat' => 'Van 1', 'confirmation' => 'KXQ4TR']],
+        ['Lucas', 'Fernandez', 'traveler', 310, ['passport_expires' => '2027-09-01', 'shirt' => "Men's L", 'gender' => 'male'], ['room' => 'Guys', 'seat' => 'Van 2']],
     ];
-    foreach ($guide as $section => $body) insert('guide', ['trip_id' => $bz, 'section' => $section, 'body' => $body, 'updated_at' => $now]);
-    foreach ([['2027-06-19', '[Time]', 'Fly to Belize City', 'American Airlines · meet at the airport'], ['2027-06-19', 'Evening', 'Arrive and settle in', ''],
-              ['2027-06-20', 'Morning', 'Church with partners', ''], ['2027-06-20', 'Afternoon', 'Block party', 'God Cares Outreach'],
-              ['2027-06-21', 'Morning', 'Home visits', ''], ['2027-06-21', 'Afternoon', 'Feeding program', ''],
-              ['2027-06-22', 'All day', "Children's home VBS", ''], ['2027-06-23', 'All day', "Children's home VBS", ''],
-              ['2027-06-24', 'All day', 'Debrief and rest', ''], ['2027-06-25', '[Time]', 'Fly home', '']] as [$d, $tm, $title, $det]) {
+    $ids = [];
+    foreach ($team as [$f, $l, $role, $raised, $p, $m]) { $pid = $person(['first_name' => $f, 'last_name' => $l] + $p); $member($bz, $pid, $role, $raised, $m); $ids[] = $pid; }
+    $tk = seed_tasks($bz, $now);
+    foreach ($ids as $i => $pid) {
+        $done($tk['waiver'], $pid, '2026-09-1' . ($i % 9) . ' 19:00:00');
+        if ($i !== 5) $done($tk['ec'], $pid, '2026-09-20 18:30:00');
+        if (in_array($i, [0, 1, 2, 6], true)) $done($tk['passport'], $pid, '2026-09-28 12:00:00');
+        if (in_array($i, [0, 2, 6], true)) $done($tk['coc'], $pid, '2026-09-29 08:15:00');
+        if (in_array($i, [0, 6], true)) $done($tk['verify'], $pid, '2026-09-30 21:00:00');
+    }
+    $past = insert('meetings', ['trip_id' => $bz, 'title' => 'Kickoff meeting', 'starts_at' => '2026-09-13 12:30:00', 'ends_at' => '2026-09-13 14:00:00', 'location' => 'Room B133', 'notes' => 'Trip overview, fundraising plan and passports.']);
+    foreach (array_slice($ids, 0, 7) as $pid) insert('attendance', ['meeting_id' => $past, 'person_id' => $pid, 'present' => 1]);
+    insert('meetings', ['trip_id' => $bz, 'title' => 'Team meeting', 'starts_at' => '2026-11-08 12:30:00', 'ends_at' => '2026-11-08 14:00:00', 'location' => 'Room B133', 'notes' => 'Bring your passport if you have not uploaded it yet.']);
+    insert('meetings', ['trip_id' => $bz, 'title' => 'VBS planning night', 'starts_at' => '2027-03-04 18:30:00', 'ends_at' => '2027-03-04 20:30:00', 'location' => 'Fellowship hall', 'notes' => 'We build the VBS crafts and skits together.']);
+    insert('meetings', ['trip_id' => $bz, 'title' => 'Packing night and commissioning', 'starts_at' => '2027-06-13 18:00:00', 'ends_at' => '2027-06-13 20:00:00', 'location' => 'Main auditorium', 'notes' => 'Pack the team bins, then the church prays over the team.']);
+    foreach ([['Belize ministry schedule', 'Week at a glance from Adventures in Missions', 0], ['Missions code of conduct', 'Read and agree before December 1', 1], ['Missions trip liability waiver', 'Read and agree', 1], ['Packing list', 'Print it and check things off', 0], ['AIM 5 objectives', 'From Adventures in Missions', 0]] as [$title, $note, $ack]) {
+        insert('files', ['trip_id' => $bz, 'title' => $title, 'note' => $note, 'visible' => 1, 'must_ack' => $ack, 'kind' => 'doc', 'created_at' => $now]);
+    }
+    foreach ([['Pre-trip training videos', 'Four short videos, about 10 minutes each', 'https://www.journeychurch.org'], ['Applying for a passport', 'Clerk of Courts or the post office', 'https://travel.state.gov/content/travel/en/passports.html'], ['Belize travel advisory', 'From the U.S. State Department', 'https://travel.state.gov']] as [$title, $note, $url]) {
+        insert('files', ['trip_id' => $bz, 'title' => $title, 'note' => $note, 'url' => $url, 'visible' => 1, 'kind' => 'link', 'created_at' => $now]);
+    }
+    $coc = (int)val("SELECT id FROM files WHERE trip_id = ? AND title = 'Missions code of conduct'", [$bz]);
+    foreach ([$ids[0], $ids[2], $ids[6]] as $pid) insert('file_acks', ['file_id' => $coc, 'person_id' => $pid, 'opened_at' => '2026-09-29 08:00:00', 'acked_at' => '2026-09-29 08:15:00']);
+    $bz_guide = [
+        'airport' => "Jacksonville International (JAX), American Airlines counter\nMeet at 4:15 AM on Saturday, June 19\nBring your passport and one checked bag with team supplies",
+        'lodging' => "Adventures in Missions ministry base, Belize City\nShared rooms with bunks, fans and running water\nThe team eats breakfast and dinner together at the base",
+        'contacts' => "Trip leader: Corey Rees, (904) 555-0101\nCo-leader: Maya Bennett\nAdventures in Missions host: Sample Host, +501 555 0100\nJourney Church office: (904) 555-0199",
+        'packing' => "Passport and a copy of it\n5 modest ministry outfits\nComfortable closed-toe shoes and sandals\nRefillable water bottle\nSunscreen and bug spray\nRain jacket\nBible and journal\nMedications in their original bottles",
+        'wear' => "Ministry days: knee-length shorts or skirts, T-shirts with sleeves\nChurch Sunday: nice casual\nNo tank tops or clothing with slogans",
+        'money' => "U.S. dollars are accepted almost everywhere\n2 Belize dollars = 1 U.S. dollar\nBring $50 to $100 in small bills for snacks and souvenirs",
+        'weather' => "Hot and humid, highs near 88°F\nJune is the start of the rainy season: expect quick afternoon showers",
+        'power' => "Same plugs and 110 volts as the U.S. No adapter needed.",
+        'phone' => "Wi-Fi at the base in the evenings\nCheck your carrier's international plan before you go\nFamilies get a daily update from the leaders",
+        'health' => "Drink bottled or filtered water only\nCheck with your doctor about recommended vaccines\nTravel medical insurance is included in your trip cost",
+        'entry' => "Passport valid through December 25, 2027\nU.S. citizens do not need a visa for a short visit",
+        'safety' => "Always stay with your buddy\nLeaders keep everyone's passports in a lockbox at the base\nIn an emergency, find Corey or Maya first",
+    ];
+    foreach ($bz_guide as $k => $body) insert('guide', ['trip_id' => $bz, 'section' => $k, 'body' => $body, 'updated_at' => $now]);
+    foreach ([['2027-06-19', '6:00 AM', 'Fly JAX to Miami', 'AA 1820'], ['2027-06-19', '10:45 AM', 'Fly Miami to Belize City', 'AA 1311'], ['2027-06-19', '6:30 PM', 'Welcome dinner and orientation', 'AIM base'],
+              ['2027-06-20', '9:00 AM', 'Church with our partners', ''], ['2027-06-20', '3:00 PM', 'Neighborhood block party', 'God Cares Outreach'],
+              ['2027-06-21', '9:00 AM', 'Home visits', 'In teams of three'], ['2027-06-21', '4:00 PM', 'Feeding program', ''],
+              ['2027-06-22', '8:30 AM', "Children's home VBS, day 1", ''], ['2027-06-23', '8:30 AM', "Children's home VBS, day 2", ''],
+              ['2027-06-24', '9:00 AM', 'Debrief and a day at the Maya ruins', 'Altun Ha'], ['2027-06-25', '12:15 PM', 'Fly home', 'AA 1312, home by 9:30 PM']] as [$d, $tm, $title, $det]) {
         insert('itinerary', ['trip_id' => $bz, 'day' => $d, 'time' => $tm, 'title' => $title, 'detail' => $det]);
     }
-    insert('flights', ['trip_id' => $bz, 'direction' => 'out', 'airline' => 'American Airlines', 'flight_no' => '[TBD]', 'from_code' => 'JAX', 'to_code' => 'BZE', 'departs_at' => '2027-06-19 00:00:00', 'notes' => 'Booked through AFC Travel once the group deposit is in']);
-    insert('flights', ['trip_id' => $bz, 'direction' => 'home', 'airline' => 'American Airlines', 'flight_no' => '[TBD]', 'from_code' => 'BZE', 'to_code' => 'JAX', 'departs_at' => '2027-06-25 00:00:00', 'notes' => '']);
-    insert('announcements', ['trip_id' => $bz, 'title' => 'Bring your passport Sunday', 'body' => "If you haven't uploaded it yet, bring your passport to the November 9 meeting and we'll scan it.", 'author' => 'Corey Rees', 'created_at' => '2026-10-01 09:41:00']);
-
-    // ---- Israel (sample) ----
-    $il = insert('trips', ['slug' => 'israel', 'name' => 'Israel', 'public_name' => 'Israel 2027', 'city' => 'Jerusalem', 'country' => 'Israel', 'partner' => '[Partner]',
-        'start_date' => '2027-05-19', 'end_date' => '2027-05-28', 'cost_per_person' => 2970, 'max_team' => 20, 'status' => 'active', 'created_at' => $now]);
-    $names = [['Taylor', 'Brooks', 'leader', 2970], ['Avery', 'Collins', 'traveler', 1120], ['Jordan', 'Price', 'traveler', 980], ['Morgan', 'Hayes', 'traveler', 2400],
-              ['Riley', 'Foster', 'traveler', 450], ['Casey', 'Morgan', 'traveler', 1760], ['Drew', 'Bennett', 'traveler', 300]];
-    foreach ($names as [$f, $l, $role, $raised]) {
-        $pid = $person($f, $l);
-        insert('members', ['trip_id' => $il, 'person_id' => $pid, 'role' => $role, 'traveling' => 1, 'raised' => $raised, 'created_at' => $now]);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'out', 'airline' => 'American Airlines', 'flight_no' => 'AA 1820', 'from_code' => 'JAX', 'to_code' => 'MIA', 'departs_at' => '2027-06-19 06:00:00', 'arrives_at' => '2027-06-19 07:20:00', 'notes' => 'Meet at the AA counter at 4:15 AM']);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'out', 'airline' => 'American Airlines', 'flight_no' => 'AA 1311', 'from_code' => 'MIA', 'to_code' => 'BZE', 'departs_at' => '2027-06-19 10:45:00', 'arrives_at' => '2027-06-19 11:55:00']);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'home', 'airline' => 'American Airlines', 'flight_no' => 'AA 1312', 'from_code' => 'BZE', 'to_code' => 'MIA', 'departs_at' => '2027-06-25 12:15:00', 'arrives_at' => '2027-06-25 15:20:00']);
+    insert('flights', ['trip_id' => $bz, 'direction' => 'home', 'airline' => 'American Airlines', 'flight_no' => 'AA 2289', 'from_code' => 'MIA', 'to_code' => 'JAX', 'departs_at' => '2027-06-25 18:05:00', 'arrives_at' => '2027-06-25 19:25:00']);
+    foreach ([['Welcome to the Belize team', 'So glad you are going. Your checklist on the Trip page shows what to do first.', '2026-09-12 10:00:00'],
+              ['Kickoff recap', 'Thanks for coming Sunday. Slides and the fundraising plan are in Documents.', '2026-09-14 09:00:00'],
+              ['Bring your passport November 8', "If you haven't uploaded it yet, bring it to the meeting and we'll scan it.", '2026-10-01 09:41:00']] as [$title, $body, $when]) {
+        insert('announcements', ['trip_id' => $bz, 'title' => $title, 'body' => $body, 'author' => 'Corey Rees', 'created_at' => $when]);
     }
-    $person('Jamie', 'Ortiz', ['tags' => 'Applicant']);
-    insert('meetings', ['trip_id' => $il, 'title' => 'Israel info night', 'starts_at' => '2026-10-12 18:30:00', 'ends_at' => '2026-10-12 20:00:00', 'location' => '[Room]']);
-    insert('tasks', ['trip_id' => $il, 'title' => 'Upload a passport copy', 'type' => 'upload', 'due_date' => '2026-11-15', 'allow_self' => 1, 'created_at' => $now]);
-    insert('budget', ['trip_id' => $il, 'description' => '[Sample budget]', 'type' => 'MISC', 'vendor' => '', 'unit_cost' => 2970, 'qty' => 7, 'per_traveler' => 1]);
 
-    insert('activity', ['trip_id' => $bz, 'who' => 'Setup', 'what' => 'Created the Belize trip from ManagedMissions details', 'created_at' => $now]);
+    // ================= Israel =================
+    $il = insert('trips', ['slug' => 'israel', 'name' => 'Israel', 'public_name' => 'Israel 2027', 'city' => 'Jerusalem', 'country' => 'Israel', 'partner' => 'Sample Tours',
+        'start_date' => '2027-05-19', 'end_date' => '2027-05-28', 'cost_per_person' => 3950, 'max_team' => 24, 'app_deadline' => '2026-12-15', 'status' => 'active',
+        'passport_valid_through' => '2027-11-28', 'group_name' => 'Adults',
+        'description' => 'Walk where Jesus walked: Galilee, Jerusalem and the Judean wilderness, with daily teaching and worship along the way.',
+        'qualifications' => "Adults 18 and older\nAble to walk 3 to 5 miles a day, with hills and stairs\nPassport valid through November 28, 2027", 'created_at' => $now]);
+    foreach ([['israel-1.jpg', 'Old City from the Mount of Olives'], ['israel-2.jpg', 'Old City at golden hour'], ['israel-5.jpg', 'Judean hills'], ['israel-3.jpg', 'Old City stairs'], ['israel-6.jpg', 'Old City passage'], ['israel-4.jpg', 'Jerusalem at night']] as [$f, $title]) $photo($il, $f, $title);
+    $names = [['Taylor', 'Brooks', 'leader', 3950], ['Avery', 'Collins', 'traveler', 2100], ['Jordan', 'Price', 'traveler', 1800], ['Morgan', 'Hayes', 'traveler', 3950], ['Riley', 'Foster', 'traveler', 900],
+              ['Casey', 'Morgan', 'traveler', 3100], ['Drew', 'Bennett', 'traveler', 600], ['Hannah', 'Lee', 'traveler', 2750], ['Marcus', 'Hill', 'traveler', 3950], ['Priya', 'Shah', 'traveler', 1500]];
+    $iids = [];
+    foreach ($names as $i => [$f, $l, $role, $raised]) {
+        $pid = $person(['first_name' => $f, 'last_name' => $l, 'shirt' => ['S', 'M', 'L', 'XL'][$i % 4], 'passport_expires' => $i % 3 ? '2031-0' . (1 + $i % 8) . '-15' : null, 'ec1_name' => $i % 4 ? 'Sample Contact' : null]);
+        $member($il, $pid, $role, $raised); $iids[] = $pid;
+    }
+    $itk = seed_tasks($il, $now, '-1 month');
+    foreach ($iids as $i => $pid) { $done($itk['waiver'], $pid, '2026-09-05 10:00:00'); if ($i % 4) $done($itk['ec'], $pid, '2026-09-08 10:00:00'); if ($i % 3) $done($itk['passport'], $pid, '2026-09-25 10:00:00'); if ($i % 2) $done($itk['coc'], $pid, '2026-09-27 10:00:00'); }
+    insert('goals', ['trip_id' => $il, 'due_date' => '2026-11-30', 'kind' => 'percent', 'amount' => 25]);
+    insert('goals', ['trip_id' => $il, 'due_date' => '2027-01-31', 'kind' => 'percent', 'amount' => 60]);
+    insert('goals', ['trip_id' => $il, 'due_date' => '2027-03-15', 'kind' => 'percent', 'amount' => 100]);
+    insert('meetings', ['trip_id' => $il, 'title' => 'Israel info night', 'starts_at' => '2026-10-12 18:30:00', 'ends_at' => '2026-10-12 20:00:00', 'location' => 'Room B133']);
+    insert('meetings', ['trip_id' => $il, 'title' => 'Bible background: the Gospels in their land', 'starts_at' => '2027-01-24 18:30:00', 'ends_at' => '2027-01-24 20:00:00', 'location' => 'Fellowship hall']);
+    insert('budget', ['trip_id' => $il, 'description' => 'Tour package: hotels, breakfast and dinner, guide, bus', 'type' => 'Lodging', 'vendor' => 'Sample Tours', 'unit_cost' => 2650, 'qty' => 1, 'per_traveler' => 1, 'est_date' => '2027-02-01']);
+    insert('budget', ['trip_id' => $il, 'description' => 'Airfare JAX to Tel Aviv', 'type' => 'Airfare', 'vendor' => 'Sample Airline', 'unit_cost' => 1200, 'qty' => 1, 'per_traveler' => 1, 'est_date' => '2027-01-15']);
+    insert('budget', ['trip_id' => $il, 'description' => 'Tips and entry fees', 'type' => 'MISC', 'vendor' => '', 'unit_cost' => 100, 'qty' => 1, 'per_traveler' => 1, 'est_date' => '2027-05-19']);
+    $il_guide = [
+        'airport' => "Jacksonville International (JAX)\nMeet at 1:30 PM on Wednesday, May 19 by the check-in counters",
+        'lodging' => "Tiberias by the Sea of Galilee for 3 nights\nJerusalem for 5 nights\nHotels with breakfast and dinner included",
+        'contacts' => "Trip leader: Taylor Brooks\nTour guide: Sample Guide\nJourney Church office: (904) 555-0199",
+        'packing' => "Passport and a copy\nGood walking shoes, already broken in\nHat and sunscreen\nLight layers for cool evenings\nModest clothes for holy sites (shoulders and knees covered)\nSmall daypack and water bottle",
+        'wear' => "Holy sites require covered shoulders and knees\nA light scarf is handy for women",
+        'money' => "Israeli shekels, though U.S. dollars and cards work in most places\nBring $150 to $250 for lunches and souvenirs",
+        'weather' => "Late May is warm and dry\nHighs in the 80s, cooler in Jerusalem evenings",
+        'power' => "230 volts with type H and C plugs\nBring a plug adapter. Most phone chargers handle 230 V.",
+        'phone' => "Hotel Wi-Fi every night\nAn international plan or eSIM is the easiest way to stay connected",
+        'health' => "Tap water is safe\nHydrate often: we walk a lot in the sun\nTravel insurance is included",
+        'entry' => "Passport valid through November 28, 2027\nU.S. citizens apply online for an ETA-IL travel authorization before the trip. We'll walk you through it.",
+        'safety' => "Stay with the group in crowded places\nKeep your passport in the hotel safe\nFollow your guide's instructions at all sites",
+    ];
+    foreach ($il_guide as $k => $body) insert('guide', ['trip_id' => $il, 'section' => $k, 'body' => $body, 'updated_at' => $now]);
+    foreach ([['2027-05-19', '5:10 PM', 'Fly to Tel Aviv overnight', ''], ['2027-05-20', 'Afternoon', 'Arrive and drive to Galilee', ''], ['2027-05-21', 'All day', 'Sea of Galilee boat ride, Capernaum, Mount of Beatitudes', ''],
+              ['2027-05-22', 'All day', 'Nazareth and the Jordan River', ''], ['2027-05-23', 'All day', 'Drive to Jerusalem through the Jordan Valley', ''], ['2027-05-24', 'All day', 'Mount of Olives, Garden of Gethsemane', ''],
+              ['2027-05-25', 'All day', 'Old City, Pools of Bethesda, the Western Wall', ''], ['2027-05-26', 'All day', 'Masada and the Dead Sea', ''], ['2027-05-27', 'Morning', 'Garden Tomb communion service', ''],
+              ['2027-05-28', 'Morning', 'Fly home', '']] as [$d, $tm, $title, $det]) {
+        insert('itinerary', ['trip_id' => $il, 'day' => $d, 'time' => $tm, 'title' => $title, 'detail' => $det]);
+    }
+    insert('flights', ['trip_id' => $il, 'direction' => 'out', 'airline' => 'Sample Airline', 'flight_no' => 'SA 100', 'from_code' => 'JAX', 'to_code' => 'TLV', 'departs_at' => '2027-05-19 17:10:00', 'arrives_at' => '2027-05-20 12:30:00']);
+    insert('flights', ['trip_id' => $il, 'direction' => 'home', 'airline' => 'Sample Airline', 'flight_no' => 'SA 101', 'from_code' => 'TLV', 'to_code' => 'JAX', 'departs_at' => '2027-05-28 10:00:00', 'arrives_at' => '2027-05-28 19:45:00']);
+    foreach (['Israel trip packet', 'Holy sites dress guide'] as $title) insert('files', ['trip_id' => $il, 'title' => $title, 'visible' => 1, 'kind' => 'doc', 'created_at' => $now]);
+    insert('announcements', ['trip_id' => $il, 'title' => 'Info night October 12', 'body' => 'Bring a friend who is thinking about going.', 'author' => 'Taylor Brooks', 'created_at' => '2026-09-30 15:00:00']);
+
+    insert('people', ['first_name' => 'Jamie', 'last_name' => 'Ortiz', 'tags' => 'Applicant', 'created_at' => $now]);
+    foreach ([[$bz, 'Corey Rees', 'Posted the packing list'], [$bz, 'Grace Okafor', 'Uploaded: Upload a passport copy'], [$il, 'Taylor Brooks', 'Scheduled Israel info night'], [$bz, 'Corey Rees', 'Posted an announcement']] as [$t, $who, $what]) {
+        insert('activity', ['trip_id' => $t, 'who' => $who, 'what' => $what, 'created_at' => $now]);
+    }
 }

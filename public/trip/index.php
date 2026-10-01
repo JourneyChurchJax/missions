@@ -21,10 +21,17 @@ member_header('trip');
   <a class="cell group" href="/trip/messages.php" style="min-height:64px"><span class="av dark">!</span><div class="grow"><strong><?= e($latest['title'] ?: 'Update from your leader') ?></strong><div class="muted small"><?= e(mb_strimwidth($latest['body'], 0, 110, '…')) ?></div></div><span class="muted small"><?= fdate($latest['created_at'], 'M j') ?> ›</span></a>
   <?php endif; ?>
 
-  <div class="gallery">
-    <div><span class="ghost" style="left:-10px;top:24px;font-size:200px"><?= e(strtoupper($t['name'])) ?></span><span style="position:relative">[Trip photo]</span></div>
-    <div>[Ministry photo]</div><div>[Team photo]</div><div>[Partner photo]</div><div>[Last year's trip]</div>
+  <?php $photos = trip_photos($tid); ?>
+  <?php if ($photos): ?>
+  <div class="gallery photos">
+    <?php foreach (array_slice($photos, 0, 5) as $ph): ?><div><img src="<?= e($ph['src']) ?>" alt="<?= e($ph['title']) ?>" loading="lazy"></div><?php endforeach; ?>
   </div>
+  <?php else: ?>
+  <div class="gallery">
+    <div><span class="ghost" style="left:-10px;top:24px;font-size:200px"><?= e(strtoupper($t['name'])) ?></span><span style="position:relative">Trip photos coming soon</span></div>
+    <div></div><div></div><div></div><div></div>
+  </div>
+  <?php endif; ?>
 
   <div class="split" style="grid-template-columns:minmax(0,1fr) 400px;gap:40px">
     <section class="bento" aria-label="Your trip at a glance">

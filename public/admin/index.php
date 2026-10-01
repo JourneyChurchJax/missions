@@ -43,7 +43,7 @@ admin_header('trips');
   <section class="g3">
   <?php foreach ($list as $t): $id = (int)$t['id']; $n = count(travelers($id)); $ready = trip_ready_count($id); $g = trip_goal($t); ?>
     <a class="trip" href="/admin/trip.php?id=<?= $id ?>">
-      <div class="media"><span class="ghost"><?= e(strtoupper($t['name'])) ?></span><span class="badge"><?= $t['status'] !== 'active' ? e(ucfirst($t['status'])) : days_until($t['start_date']) . ' days' ?></span><span class="small" style="position:relative;color:var(--muted-dark)">[Trip photo]</span></div>
+      <div class="media<?= ($cv = trip_cover($id)) ? ' has-photo' : '' ?>"><?php if ($cv): ?><img src="<?= e($cv) ?>" alt="" loading="lazy"><?php else: ?><span class="ghost"><?= e(strtoupper($t['name'])) ?></span><?php endif; ?><span class="badge"><?= $t['status'] !== 'active' ? e(ucfirst($t['status'])) : days_until($t['start_date']) . ' days' ?></span><?php if (!$cv): ?><span class="small" style="position:relative;color:var(--muted-dark)">Add photos in Edit trip</span><?php endif; ?></div>
       <div class="facts">
         <div style="display:flex;justify-content:space-between;gap:12px"><strong style="font-size:18px"><?= e($t['name']) ?></strong><strong><?= pct(trip_raised($id), $g) ?>% raised</strong></div>
         <div class="muted"><?= e(date_range($t['start_date'], $t['end_date'])) ?> · <?= $n ?> traveling</div>

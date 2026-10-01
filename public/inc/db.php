@@ -10,15 +10,30 @@ function data_dir(): string {
     return $dir;
 }
 
+// Site settings that live outside the database (so they survive switching databases)
+function site_settings(): array {
+    $f = data_dir() . '/settings.json';
+    return is_file($f) ? (json_decode((string)file_get_contents($f), true) ?: []) : [];
+}
+function save_site_settings(array $s): void {
+    file_put_contents(data_dir() . '/settings.json', json_encode($s + site_settings(), JSON_PRETTY_PRINT), LOCK_EX);
+}
+function demo_on(): bool { return !empty(site_settings()['demo']); }
+function demo_db_path(): string { return data_dir() . '/demo.sqlite'; }
+
+// Real data: journey.sqlite (or MySQL from config). Demo data: demo.sqlite, a separate file the Settings switch turns on.
 function db(): PDO {
     static $pdo = null;
     global $config;
     if ($pdo) return $pdo;
-    if (!empty($config['db']['dsn'])) {
+    if (demo_on()) {
+        $pdo = new PDO('sqlite:' . demo_db_path());
+        $pdo->exec('PRAGMA journal_mode = WAL;');
+    } elseif (!empty($config['db']['dsn'])) {
         $pdo = new PDO($config['db']['dsn'], $config['db']['user'] ?? null, $config['db']['pass'] ?? null);
     } else {
-        $pdo = new PDO('sqlite:' . data_dir() . '/missions.sqlite');
-        $pdo->exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
+        $pdo = new PDO('sqlite:' . data_dir() . '/journey.sqlite');
+        $pdo->exec('PRAGMA journal_mode = WAL;');
     }
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
@@ -98,7 +113,7 @@ function migrate(PDO $pdo): void {
         }
     }
     $pdo->prepare($drv === 'mysql' ? 'REPLACE INTO meta (k, v) VALUES (?, ?)' : 'INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)')->execute(['schema', (string)SCHEMA_VERSION]);
-    if ($v === 0) { require_once __DIR__ . '/seed.php'; seed($pdo); }
+    if ($v === 0) { require_once __DIR__ . '/seed.php'; demo_on() ? seed_demo($pdo) : seed($pdo); }
 }
 
 // Small query helpers
