@@ -19,7 +19,25 @@ Set in **Settings → Secrets and variables → Actions**:
 | `FTP_PASSWORD` | Secret | the FTP account's password |
 | `FTP_SERVER_DIR` | Variable | the folder to upload into, e.g. `public_html/` |
 
-Server-side settings (database, Stripe keys, Planning Center keys) will live in a `config.php` that exists only on the server. It is listed in `.gitignore` so it can never be committed.
+## Server config
+
+Server-side settings live in `config.php`, which exists only on the server, in the `missions.journeychurch.org` folder **next to** `public_html` (so it can never be downloaded). It is in `.gitignore` and the deploy skips it.
+
+```php
+<?php
+return [
+    'preview_password' => 'choose-a-strong-password',
+    // later: database, Stripe and Planning Center keys
+];
+```
+
+## Pages
+
+- `/signin.php` preview sign-in · `/` pick staff or traveler view
+- Staff: `/admin/` trips · `/admin/trip.php` · `people` · `applications` · `giving` · `reports` · `settings`
+- Traveler: `/trip/` · `schedule` · `documents` · `fundraising` · `messages`
+
+Data is sample data from `public/inc/data.php` until the database is connected.
 
 ## Design
 

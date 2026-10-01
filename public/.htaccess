@@ -1,0 +1,18 @@
+# Journey Missions
+DirectoryIndex index.php index.html
+Options -Indexes
+
+# Always use HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# The inc folder is code only, never served directly
+RewriteRule ^inc/ - [F,L]
+
+# Keep search engines out of the preview
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
