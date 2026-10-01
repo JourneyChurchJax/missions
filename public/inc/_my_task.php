@@ -10,10 +10,14 @@ $done = (bool)$k['done_at'];
     <span class="check<?= $done ? ' done' : '' ?>" aria-hidden="true">✓</span>
   <?php endif; ?>
   <div class="grow"><strong<?= $done ? ' style="text-decoration:line-through;color:var(--muted)"' : '' ?>><?= e($k['title']) ?></strong>
-    <div class="muted small"><?= $done ? 'Done ' . fdate($k['done_at'], 'M j') : ($k['due_date'] ? 'Due ' . fdate($k['due_date'], 'M j') : '') ?><?= $k['description'] && !$done ? ' · ' . e($k['description']) : '' ?></div>
+    <div class="muted small"><?= $done ? 'Done ' . fdate($k['done_at'], 'M j') : ($k['due_date'] ? 'Due ' . fdate($k['due_date'], 'M j') : '') ?><?= $k['description'] && !$done && $k['type'] !== 'sign' ? ' · ' . e($k['description']) : '' ?></div>
     <?php if ($k['file_id']): ?><a class="small" href="/file.php?id=<?= (int)$k['file_id'] ?>">See what you uploaded</a><?php endif; ?>
   </div>
-  <?php if ($k['type'] === 'upload' && !$done): ?>
+  <?php if ($k['type'] === 'sign'): [$signed, $psigned, $pneed] = signature_state($k, (int)$me['id']); ?>
+    <?php if (!$signed): ?><a class="btn btn-primary" href="/sign.php?task=<?= (int)$k['id'] ?>" style="height:38px">Read and sign</a>
+    <?php elseif ($pneed && !$psigned): ?><span class="muted small">You signed. Waiting for a parent.</span>
+    <?php else: ?><a class="small" href="/sign.php?task=<?= (int)$k['id'] ?>">View signature</a><?php endif; ?>
+  <?php elseif ($k['type'] === 'upload' && !$done): ?>
     <details class="edit"><summary>Upload</summary>
       <form class="form" method="post" action="/action.php" enctype="multipart/form-data" style="padding-top:10px"><?= csrf() ?><input type="hidden" name="action" value="task_upload"><input type="hidden" name="id" value="<?= (int)$k['id'] ?>">
         <label class="drop"><strong>Choose a photo or PDF</strong><span class="muted small">Only you and your leaders can see it</span><input type="file" name="file" accept="image/*,application/pdf" required></label>

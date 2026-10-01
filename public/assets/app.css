@@ -279,3 +279,8 @@ details.edit[open]{flex-basis:100%}
 @media (max-width:640px){.sum{grid-template-columns:1fr}.pub-main h1{font-size:34px}}
 .tbl td.wrap{white-space:normal;min-width:160px}
 .tbl details.edit[open]{position:relative}
+
+/* Signature pad */
+.sigpad{width:100%;height:180px;background:#fff;border-radius:var(--r-sm);box-shadow:inset 0 0 0 1.5px var(--sand);touch-action:none;cursor:crosshair}
+.seg .opt:has(input:checked){background:var(--raised);box-shadow:var(--sh-sm);color:var(--ink)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}

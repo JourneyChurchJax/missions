@@ -31,7 +31,12 @@ return [
     'mail_from' => 'missions@journeychurch.org',
     // Texts (optional): a Twilio account
     // 'twilio' => ['sid' => 'AC...', 'token' => '...', 'from' => '+19045550100'],
-    // later: database, Stripe and Planning Center keys
+    // Stripe (online giving): Developers → API keys and Developers → Webhooks in Stripe
+    // 'stripe' => ['secret' => 'sk_live_...', 'webhook_secret' => 'whsec_...'],
+    // Planning Center: api.planningcenteronline.com → OAuth app (sign-in) and Personal access token (people sync)
+    // 'pco' => ['client_id' => '...', 'client_secret' => '...', 'app_id' => '...', 'secret' => '...'],
+    // Who signs in as staff (besides Planning Center admins and people tagged Staff)
+    // 'staff_emails' => ['adam@journeychurch.org'],
 ];
 ```
 

@@ -43,6 +43,7 @@ switch ($a) {
         $row = [];
         foreach (['name', 'public_name', 'city', 'country', 'partner', 'start_date', 'end_date', 'description', 'qualifications',
                   'cost_per_person', 'max_team', 'app_deadline', 'group_name', 'passport_valid_through'] as $k) $row[$k] = nn(post($k));
+        $row['bg_required'] = array_key_exists(post('bg_required'), BG_RULES) ? post('bg_required') : 'leaders';
         if (!$row['name'] || !$row['start_date'] || !$row['end_date']) { flash('A trip needs a name and dates.'); back(); }
         if ($id) { update('trips', $id, $row); log_activity($id, 'Updated trip details'); flash('Trip saved'); header("Location: /admin/trip.php?id=$id"); exit; }
         $row += ['slug' => strtolower(preg_replace('/[^a-z0-9]+/i', '-', $row['name'])) . '-' . substr(bin2hex(random_bytes(2)), 0, 4), 'status' => 'active', 'created_at' => now()];
@@ -102,7 +103,8 @@ switch ($a) {
     case 'task_save':
         need_staff($staff);
         $row = ['trip_id' => $trip_id, 'title' => post('title'), 'description' => nn(post('description')), 'type' => array_key_exists(post('type'), TASK_TYPES) ? post('type') : 'traveler',
-                'due_date' => nn(post('due_date')), 'minors_only' => post('minors_only') ? 1 : 0, 'allow_self' => post('allow_self') ? 1 : 0];
+                'due_date' => nn(post('due_date')), 'minors_only' => post('minors_only') ? 1 : 0, 'allow_self' => post('allow_self') ? 1 : 0,
+                'file_id' => (int)post('file_id') ?: null, 'parent_sign' => post('parent_sign') ? 1 : 0];
         if (!$row['title']) { flash('Give the task a name.'); back(); }
         if ($id) update('tasks', $id, $row); else { $row['created_at'] = now(); insert('tasks', $row); log_activity($trip_id, 'Added task: ' . $row['title']); }
         flash('Task saved'); back();
@@ -114,6 +116,7 @@ switch ($a) {
         $task = one('SELECT * FROM tasks WHERE id = ?', [$id]);
         $pid = $staff ? (int)post('person_id') : (int)$me;
         if (!$task || (!$staff && !$task['allow_self'])) { flash('Your leader marks this one done.'); back(); }
+        if (!$staff && $task['type'] !== 'traveler') { flash('Use the button on the task to finish it.'); back(); }
         $done = one('SELECT * FROM task_done WHERE task_id = ? AND person_id = ?', [$id, $pid]);
         if ($done) { delete_row('task_done', (int)$done['id']); flash('Marked not done'); }
         else { insert('task_done', ['task_id' => $id, 'person_id' => $pid, 'done_at' => now()]); flash('Done'); }
@@ -212,6 +215,28 @@ switch ($a) {
         if ($id) update('flights', $id, $row); else insert('flights', $row);
         log_activity($trip_id, 'Updated flights');
         flash('Flight saved'); back();
+    case 'flight_parse':
+        need_staff($staff);
+        require_once __DIR__ . '/inc/flightparse.php';
+        $found = parse_flights((string)post('text'), trip($trip_id));
+        $_SESSION['flight_preview'] = [$trip_id => $found];
+        flash($found ? 'Found ' . count($found) . ' flight' . (count($found) === 1 ? '' : 's') . '. Check them, then save.' : "Couldn't find any flight numbers. Try pasting more of the email, or add flights by hand.");
+        back();
+    case 'flight_import':
+        need_staff($staff);
+        $n = 0;
+        foreach ((array)($_POST['f'] ?? []) as $r) {
+            if (empty($r['use']) || empty($r['flight_no'])) continue;
+            insert('flights', ['trip_id' => $trip_id, 'direction' => ($r['direction'] ?? '') === 'home' ? 'home' : 'out', 'airline' => trim((string)($r['airline'] ?? '')), 'flight_no' => strtoupper(trim((string)$r['flight_no'])),
+                'from_code' => strtoupper(substr(trim((string)($r['from_code'] ?? '')), 0, 3)), 'to_code' => strtoupper(substr(trim((string)($r['to_code'] ?? '')), 0, 3)),
+                'departs_at' => nn(str_replace('T', ' ', (string)($r['departs_at'] ?? ''))), 'arrives_at' => nn(str_replace('T', ' ', (string)($r['arrives_at'] ?? '')))]);
+            $n++;
+        }
+        unset($_SESSION['flight_preview']);
+        if ($n && post('replace_tbd')) q("DELETE FROM flights WHERE trip_id = ? AND (flight_no IS NULL OR flight_no = '' OR flight_no LIKE '[%')", [$trip_id]);
+        if ($n) log_activity($trip_id, "Imported $n flights");
+        flash($n ? "Saved $n flight" . ($n === 1 ? '' : 's') : 'Nothing saved'); back();
+    case 'flight_preview_clear': unset($_SESSION['flight_preview']); back();
     case 'flight_delete': need_staff($staff); delete_row('flights', $id); flash('Flight removed'); back();
 
     // ---------------- Announcements ----------------
@@ -464,6 +489,76 @@ switch ($a) {
             if (send_email($d['email'], "Your $yr giving statement from Journey Church", "Dear " . ($d['first_name'] ?: donor_name($d)) . ",\n\nThank you for supporting Journey Church missions in $yr. Here are your gifts:\n\n" . implode("\n", array_reverse($lines)) . "\n\nTotal: " . money((float)$d['total'], 2) . "\n\nNo goods or services were provided in exchange for these contributions. Please keep this for your tax records.")) $sent++;
         }
         flash(mail_ready() ? "Emailed $sent statements." . ($skipped ? " $skipped donors have no email; print theirs." : '') : 'Email isn\'t set up yet, so statements were saved, not sent. Print them instead.'); back();
+    case 'bg_save':
+        need_staff($staff);
+        $pp = (int)post('person_id'); $st = array_key_exists(post('status'), BG_STATUS) ? post('status') : 'requested';
+        $row = ['person_id' => $pp, 'provider' => nn(post('provider')), 'status' => $st, 'requested_at' => post('requested_at') ?: date('Y-m-d'),
+                'completed_at' => nn(post('completed_at')) ?? ($st === 'clear' ? date('Y-m-d') : null), 'expires_on' => nn(post('expires_on')), 'note' => nn(post('note'))];
+        if ($st === 'clear' && !$row['expires_on']) $row['expires_on'] = date('Y-m-d', strtotime(($row['completed_at'] ?: date('Y-m-d')) . ' +3 years'));
+        if ($id) update('background_checks', $id, $row); else insert('background_checks', $row + ['created_by' => current_actor_name(), 'created_at' => now()]);
+        flash('Background check saved'); back();
+    case 'pco_link':
+        need_staff($staff);
+        $pp = (int)post('person_id'); $pid_pco = preg_replace('/\D+/', '', (string)post('pco_id'));
+        if (!$pid_pco) { flash('Pick a Planning Center person.'); back(); }
+        if (($other = one('SELECT id FROM people WHERE pco_id = ? AND id <> ?', [$pid_pco, $pp]))) { flash('That Planning Center person is already linked to someone else here.'); back(); }
+        update('people', $pp, ['pco_id' => $pid_pco]);
+        try { [$n, $bg] = pco_pull($pp); flash("Linked. Filled in $n field" . ($n === 1 ? '' : 's') . ($bg ? ' and their background check' : '') . ' from Planning Center.'); }
+        catch (Throwable $e) { flash('Linked, but could not pull details: ' . $e->getMessage()); }
+        header('Location: /admin/person.php?id=' . $pp); exit;
+    case 'pco_pull':
+        need_staff($staff);
+        try { [$n, $bg] = pco_pull((int)post('person_id'), (bool)post('overwrite')); flash("Updated $n field" . ($n === 1 ? '' : 's') . ($bg ? ', plus their background check' : '') . '.'); }
+        catch (Throwable $e) { flash($e->getMessage()); }
+        back();
+    case 'pco_unlink': need_staff($staff); update('people', (int)post('person_id'), ['pco_id' => null, 'pco_synced_at' => null]); flash('Unlinked from Planning Center'); back();
+    case 'pco_import':
+        need_staff($staff);
+        $pid_pco = preg_replace('/\D+/', '', (string)post('pco_id'));
+        if ($have = one('SELECT id FROM people WHERE pco_id = ?', [$pid_pco])) { header('Location: /admin/person.php?id=' . $have['id']); exit; }
+        $new = insert('people', ['first_name' => post('first_name') ?: 'New', 'last_name' => post('last_name') ?: 'Person', 'pco_id' => $pid_pco, 'created_at' => now()]);
+        try { pco_pull($new, true); flash('Added from Planning Center'); } catch (Throwable $e) { flash('Added, but could not pull details: ' . $e->getMessage()); }
+        header('Location: /admin/person.php?id=' . $new); exit;
+    case 'pco_pull_trip':
+        need_staff($staff);
+        $ok = 0; $fail = 0;
+        foreach (members($trip_id) as $m) { $pp = person((int)$m['person_id']); if (!$pp['pco_id']) continue; try { pco_pull((int)$pp['id']); $ok++; } catch (Throwable $e) { $fail++; } }
+        flash("Updated $ok people from Planning Center." . ($fail ? " $fail couldn't be reached." : '')); back();
+    case 'page_save':
+        $pp = $staff ? (int)post('person_id') : (int)$me;
+        $mem = member_of($trip_id, $pp);
+        if (!$mem) { http_response_code(403); exit('Not your page.'); }
+        $row = ['page_story' => mb_substr((string)post('page_story'), 0, 3000)];
+        $slug = strtolower(preg_replace('/[^a-z0-9]/i', '', (string)post('page_slug')));
+        if ($slug && $slug !== $mem['page_slug']) {
+            if (strlen($slug) < 3 || in_array($slug, ['admin', 'trip', 'apply', 'reference', 'parent', 'give', 'assets', 'inc', 'auth', 'signin', 'signout', 'calendar', 'chat', 'packet', 'sign', 'file', 'action'], true) || val('SELECT COUNT(*) FROM members WHERE page_slug = ? AND id <> ?', [$slug, $mem['id']])) { flash('That page address is taken. Try another.'); back(); }
+            $row['page_slug'] = $slug;
+        }
+        if ($fid = save_upload('page_photo', $trip_id, $pp, 'Fundraising page photo', 'pagephoto', ['visible' => 0])) {
+            $mime = val('SELECT mime FROM files WHERE id = ?', [$fid]);
+            if (str_starts_with((string)$mime, 'image/')) $row['page_photo_id'] = $fid; else { flash('Use a photo for your page.'); back(); }
+        }
+        if (post('publish') && in_array($mem['page_status'], ['draft', null, ''], true)) $row['page_status'] = approve_pages() && !$staff ? 'pending' : 'live';
+        update('members', (int)$mem['id'], $row);
+        flash(isset($row['page_status']) ? ($row['page_status'] === 'pending' ? 'Sent to your leader for a quick look. It goes live once approved.' : 'Your page is live!') : 'Page saved'); back();
+    case 'page_review':
+        need_staff($staff);
+        $mem = one('SELECT * FROM members WHERE id = ?', [$id]);
+        $st = in_array(post('status'), ['live', 'hidden', 'draft'], true) ? post('status') : 'live';
+        update('members', $id, ['page_status' => $st]);
+        if ($st === 'live' && ($pp = person((int)$mem['person_id'])) && $pp['email']) send_email($pp['email'], 'Your fundraising page is live', "Your page is ready to share:\n\n" . page_url(array_merge($mem, ['page_slug' => $mem['page_slug']])) . "\n\nText it to a few people today with one line about why you're going.", (int)$mem['trip_id'], (int)$mem['person_id']);
+        flash(['live' => 'Page approved and live', 'hidden' => 'Page hidden', 'draft' => 'Page set back to not shared'][$st]); back();
+    case 'stripe_pay':
+        if ($staff || !$me) { flash('Only travelers pay from here.'); back(); }
+        $amt = round((float)post('amount'), 2); $mem = member_of($trip_id, (int)$me);
+        if (!$mem || $amt < 5) { flash('Enter at least $5.'); back(); }
+        if (!stripe_ready()) { flash('Online payments open once Stripe is connected. For now, pay by check at the church office.'); back(); }
+        try { header('Location: ' . stripe_checkout('payment', $amt, 'Trip payment · ' . trip($trip_id)['name'], ['trip_id' => $trip_id, 'person_id' => $me], site_url('/trip/fundraising.php?paid=1'), site_url('/trip/fundraising.php'), person((int)$me)['email'] ?: null)); exit; }
+        catch (Throwable $e) { flash('Could not start the payment. Try again in a minute.'); back(); }
+    case 'site_setting':
+        need_staff($staff);
+        if (post('key') === 'approve_pages') save_site_settings(['approve_pages' => (bool)post('value')]);
+        flash('Saved'); back();
     case 'test_email':
         need_staff($staff);
         $ok = send_email((string)post('to'), 'Journey Missions test email', 'If you can read this, email from Journey Missions is working.');

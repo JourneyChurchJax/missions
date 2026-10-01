@@ -11,7 +11,7 @@ $ids = isset($_GET['donor']) ? [(int)$_GET['donor']]
 <head>
 <meta charset="utf-8"><meta name="robots" content="noindex, nofollow">
 <title><?= $year ?> giving statements · Journey Missions</title>
-<link rel="stylesheet" href="/assets/app.css?v=7">
+<link rel="stylesheet" href="/assets/app.css?v=8">
 <style>
 body{background:var(--sand)}
 .sheet{background:#fff;max-width:760px;margin:24px auto;padding:56px 64px;border-radius:var(--r-md);box-shadow:var(--sh-md);font-size:15px;line-height:1.55}

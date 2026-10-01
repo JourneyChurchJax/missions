@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/inc/bootstrap.php';
 require_preview();
+// Travelers signed in with Planning Center go straight to their trip
+if (!empty($_SESSION['auth']) && empty($_SESSION['auth']['staff'])) { header('Location: /trip/'); exit; }
 if (isset($_GET['as'])) {
     if ($_GET['as'] === 'staff') { $_SESSION['view'] = 'staff'; header('Location: /admin/'); exit; }
     $_SESSION['view'] = 'traveler'; $_SESSION['person_id'] = (int)$_GET['as']; header('Location: /trip/'); exit;

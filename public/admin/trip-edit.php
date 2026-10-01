@@ -36,7 +36,8 @@ $v = fn($k) => e($t[$k] ?? '');
       <label class="lab">Max team size<input type="number" name="max_team" value="<?= $v('max_team') ?>"></label>
       <label class="lab">Passport valid through<input type="date" name="passport_valid_through" value="<?= $v('passport_valid_through') ?>"></label>
     </div>
-    <label class="lab">Group<input type="text" name="group_name" value="<?= $v('group_name') ?>" placeholder="Students, Adults, Central America"></label>
+    <div class="r2"><label class="lab">Group<input type="text" name="group_name" value="<?= $v('group_name') ?>" placeholder="Students, Adults, Central America"></label>
+      <label class="lab">Background checks required for<select name="bg_required"><?php foreach (BG_RULES as $k => $l): ?><option value="<?= $k ?>"<?= ($t['bg_required'] ?? 'leaders') === $k ? ' selected' : '' ?>><?= $l ?></option><?php endforeach; ?></select></label></div>
     <label class="lab">About this trip<textarea name="description" rows="4"><?= $v('description') ?></textarea></label>
     <label class="lab">Who can go (one per line)<textarea name="qualifications" rows="5"><?= $v('qualifications') ?></textarea></label>
     <div class="actions"><a class="btn" href="<?= $t ? '/admin/trip.php?id=' . (int)$t['id'] : '/admin/' ?>">Cancel</a><button class="btn btn-primary" type="submit"><?= $t ? 'Save' : 'Create trip' ?></button></div>

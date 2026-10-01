@@ -31,6 +31,13 @@ function initials(string $name): string {
 function require_preview(?string $view = null): void {
     global $config;
     if (!empty($_SESSION['preview_ok'])) { if ($view) $_SESSION['view'] = $view; return; }
+    // Signed in with Planning Center: staff can use both views; everyone else only sees their own trip
+    if (!empty($_SESSION['auth'])) {
+        if (!empty($_SESSION['auth']['staff'])) { if ($view) $_SESSION['view'] = $view; elseif (empty($_SESSION['view'])) $_SESSION['view'] = 'staff'; return; }
+        $_SESSION['view'] = 'traveler'; $_SESSION['person_id'] = (int)$_SESSION['auth']['person_id'];
+        if ($view === 'staff') { header('Location: /trip/'); exit; }
+        return;
+    }
     header('Location: /signin.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/'));
     exit;
 }
@@ -40,4 +47,7 @@ require __DIR__ . '/models.php';
 require __DIR__ . '/apps.php';
 require __DIR__ . '/money.php';
 require __DIR__ . '/comms.php';
+require __DIR__ . '/signing.php';
+require __DIR__ . '/give.php';
+require __DIR__ . '/pco.php';
 require __DIR__ . '/layout.php';

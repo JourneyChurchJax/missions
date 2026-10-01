@@ -19,15 +19,16 @@ function page_open(string $title): void {
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=7">
+<link rel="stylesheet" href="/assets/app.css?v=8">
 </head>
 <body>
-<div class="preview"><?= demo_on() ? '<strong>Demo data on</strong> · ' : '' ?>Preview · <?= $who ?> · <a href="/">Switch view</a><?= ($_SESSION['view'] ?? 'staff') === 'staff' ? ' · <a href="/admin/settings.php?s=demo">Demo data</a>' : '' ?> · <a href="/signout.php">Sign out</a></div>
+<?php if (!empty($_SESSION['auth']) && empty($_SESSION['auth']['staff'])): ?><div class="preview"><?= demo_on() ? '<strong>Demo data on</strong> · ' : '' ?>Signed in as <?= e($_SESSION['auth']['name']) ?> · <a href="/signout.php">Sign out</a></div>
+<?php else: ?><div class="preview"><?= demo_on() ? '<strong>Demo data on</strong> · ' : '' ?><?= !empty($_SESSION['auth']) ? 'Signed in as ' . e($_SESSION['auth']['name']) : 'Preview' ?> · <?= $who ?> · <a href="/">Switch view</a><?= ($_SESSION['view'] ?? 'staff') === 'staff' ? ' · <a href="/admin/settings.php?s=demo">Demo data</a>' : '' ?> · <a href="/signout.php">Sign out</a></div><?php endif; ?>
 <?php }
 
 function page_close(): void { $f = flash(); ?>
 <div class="toast<?= $f ? ' show' : '' ?>" role="status" aria-live="polite"><?= e($f) ?></div>
-<script src="/assets/app.js?v=5"></script>
+<script src="/assets/app.js?v=6"></script>
 </body>
 </html>
 <?php }
@@ -42,7 +43,7 @@ function public_open(string $title): void { ?>
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=7">
+<link rel="stylesheet" href="/assets/app.css?v=8">
 </head>
 <body class="pub">
 <header class="pub-top"><?= logo(210, false, 'https://journeychurch.org') ?></header>

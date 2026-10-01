@@ -15,7 +15,28 @@ $flight_fields = function (array $f) use ($dt) { ?>
   <div class="r2"><label class="lab">Departs<input type="datetime-local" name="departs_at" value="<?= $dt($f['departs_at'] ?? null) ?>"></label><label class="lab">Arrives<input type="datetime-local" name="arrives_at" value="<?= $dt($f['arrives_at'] ?? null) ?>"></label></div>
   <label class="lab">Notes<input type="text" name="notes" value="<?= e($f['notes'] ?? '') ?>" placeholder="Check one bag. Meet at the AA counter at 5:30 AM."></label>
 <?php };
+$preview = $_SESSION['flight_preview'][$id] ?? null;
 ?>
+<?php if ($preview): ?>
+<form class="tile xl" method="post" action="/action.php" style="gap:14px"><?= csrf() ?><input type="hidden" name="action" value="flight_import"><input type="hidden" name="trip_id" value="<?= $id ?>">
+  <div><strong style="font-size:18px">Check these flights</strong><div class="muted small">Fix anything that looks off, uncheck any you don't want, then save.</div></div>
+  <div class="group tbl" style="box-shadow:none;background:var(--cream)"><table>
+    <thead><tr><th></th><th>Flight</th><th>Airline</th><th>From</th><th>To</th><th>Departs</th><th>Arrives</th><th>Direction</th></tr></thead><tbody>
+    <?php foreach ($preview as $i => $r): $n = "f[$i]"; ?><tr>
+      <td><input type="checkbox" name="<?= $n ?>[use]" value="1" checked aria-label="Save this flight"></td>
+      <td><input class="pill" style="width:90px" name="<?= $n ?>[flight_no]" value="<?= e($r['flight_no']) ?>"></td>
+      <td><input class="pill" style="width:150px" name="<?= $n ?>[airline]" value="<?= e($r['airline']) ?>"></td>
+      <td><input class="pill" style="width:64px" name="<?= $n ?>[from_code]" value="<?= e($r['from_code']) ?>" maxlength="3"></td>
+      <td><input class="pill" style="width:64px" name="<?= $n ?>[to_code]" value="<?= e($r['to_code']) ?>" maxlength="3"></td>
+      <td><input class="pill" type="datetime-local" name="<?= $n ?>[departs_at]" value="<?= $dt($r['departs_at']) ?>"></td>
+      <td><input class="pill" type="datetime-local" name="<?= $n ?>[arrives_at]" value="<?= $dt($r['arrives_at']) ?>"></td>
+      <td><select class="pill" name="<?= $n ?>[direction]"><option value="out"<?= $r['direction'] === 'out' ? ' selected' : '' ?>>Going</option><option value="home"<?= $r['direction'] === 'home' ? ' selected' : '' ?>>Coming home</option></select></td>
+    </tr><?php endforeach; ?></tbody></table></div>
+  <div class="actions" style="justify-content:space-between;align-items:center"><label class="chk"><input type="checkbox" name="replace_tbd" value="1" checked> Remove the "to be booked" placeholder flights</label>
+    <span style="display:flex;gap:10px"><button class="btn" type="submit" form="fpclear">Cancel</button><button class="btn btn-primary" type="submit">Save flights</button></span></div>
+</form>
+<form id="fpclear" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="flight_preview_clear"></form>
+<?php endif; ?>
 <div class="split">
   <div style="display:flex;flex-direction:column;gap:28px;min-width:0">
     <section>
@@ -61,6 +82,12 @@ $flight_fields = function (array $f) use ($dt) { ?>
         <label class="lab">Details<input type="text" name="detail"></label>
         <button class="btn btn-dark" type="submit">Add</button></form>
     </div></details>
+    <details class="add"<?= $preview ? '' : ' open' ?>><summary>Paste flights from an email</summary><div class="body">
+      <form class="form" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="flight_parse"><input type="hidden" name="trip_id" value="<?= $id ?>">
+        <label class="lab">Paste the airline or travel agent confirmation<textarea name="text" rows="6" placeholder="American Airlines Flight 1820&#10;Sat, Jun 19 · JAX 6:00 AM → MIA 7:20 AM" required></textarea></label>
+        <button class="btn btn-dark" type="submit">Find flights</button>
+        <div class="muted small">Works with most airline and agency emails, including Adventures in Missions itineraries. You'll check them before anything saves.</div>
+      </form></div></details>
     <details class="add"><summary>Add a flight</summary><div class="body">
       <form class="form" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="flight_save"><input type="hidden" name="trip_id" value="<?= $id ?>">
         <?php $flight_fields(['direction' => 'out']); ?><button class="btn btn-dark" type="submit">Add flight</button></form>

@@ -36,7 +36,7 @@ function send_text(string $to, string $body, ?int $trip_id = null, ?int $person_
     $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($tw['sid']) . '/Messages.json');
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15,
         CURLOPT_USERPWD => $tw['sid'] . ':' . $tw['token'], CURLOPT_POSTFIELDS => http_build_query(['To' => $to, 'From' => $tw['from'], 'Body' => $body])]);
-    $res = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    $res = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $ok = $code >= 200 && $code < 300;
     update('outbox', $id, ['status' => $ok ? 'sent' : 'failed', 'error' => $ok ? null : substr((string)$res, 0, 500)]);
     return $ok;

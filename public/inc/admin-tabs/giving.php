@@ -25,6 +25,19 @@ $recent = gifts(['trip' => $id], 12);
     </tbody>
   </table></div>
 </section>
+<section>
+  <div class="gh"><span>Fundraising pages</span><span style="display:flex;gap:14px"><a href="/give/?trip=<?= e($t['slug']) ?>" target="_blank">Team page</a><button class="link-btn" type="button" data-copy="<?= e(site_url('/give/?trip=' . $t['slug'])) ?>">Copy team link</button></span></div>
+  <div class="group">
+  <?php foreach ($trav as $m): $mm = member_of($id, (int)$m['person_id']); $st = $mm['page_status'] ?: 'draft'; ?>
+    <div class="cell"><div class="grow"><strong><?= e(full_name($m)) ?></strong><div class="muted small"><?= e(str_replace('https://', '', page_url($mm))) ?></div></div>
+      <span class="pill<?= $st === 'live' ? ' pill-ok' : '' ?>"><?= e(PAGE_STATUS[$st]) ?></span>
+      <a class="small" href="/give/?s=<?= e($mm['page_slug']) ?>" target="_blank">View</a>
+      <?php if ($st === 'pending' || $st === 'hidden'): ?><form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="page_review"><input type="hidden" name="id" value="<?= (int)$mm['id'] ?>"><button class="btn btn-primary" name="status" value="live" style="height:34px">Approve</button></form><?php endif; ?>
+      <?php if ($st === 'live' || $st === 'pending'): ?><form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="page_review"><input type="hidden" name="id" value="<?= (int)$mm['id'] ?>"><button class="link-btn" name="status" value="hidden">Hide</button></form><?php endif; ?>
+    </div>
+  <?php endforeach; ?>
+  </div>
+</section>
 <div class="split">
   <section><div class="gh">Recent gifts</div><div class="group">
     <?php foreach ($recent as $g): ?><div class="cell"><div class="grow"><strong><?= e(donor_name($g['donor_id'] ? donor((int)$g['donor_id']) : null)) ?></strong><div class="muted small"><?= e(gift_for($g)) ?> · <?= fdate($g['gift_date'], 'M j') ?> · <?= e(GIFT_METHODS[$g['method']] ?? '') ?></div></div><strong><?= money((float)$g['amount'], 2) ?></strong></div><?php endforeach; ?>

@@ -115,4 +115,25 @@
       root.querySelector('[data-missing]').textContent = rows.filter(r => r.dataset.state === 'missing').length;
     }
   }));
+
+  // Signature pad: draw with a finger, pen or mouse; the PNG goes into a hidden field
+  document.querySelectorAll('form[data-sign]').forEach(form => {
+    const c = form.querySelector('canvas.sigpad'), ctx = c.getContext('2d'), out = form.querySelector('[name=sig_image]');
+    let drawing = false, inked = false, last = null;
+    const pos = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+    ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0a0a0a';
+    c.addEventListener('pointerdown', e => { drawing = true; last = pos(e); c.setPointerCapture(e.pointerId); });
+    c.addEventListener('pointermove', e => { if (!drawing) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(...last); ctx.lineTo(...p); ctx.stroke(); last = p; inked = true; });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => c.addEventListener(t, () => { drawing = false; }));
+    form.querySelector('[data-clear]').addEventListener('click', () => { ctx.clearRect(0, 0, c.width, c.height); inked = false; });
+    form.addEventListener('submit', e => {
+      if (!inked) { e.preventDefault(); say('Draw your signature in the box'); return; }
+      out.value = c.toDataURL('image/png');
+    });
+  });
+
+  // Give form: typing another amount picks "other"
+  document.querySelectorAll('[data-other]').forEach(inp => inp.addEventListener('input', () => {
+    const r = inp.closest('form').querySelector('input[name=amount][value=other]'); if (r) r.checked = true;
+  }));
 })();

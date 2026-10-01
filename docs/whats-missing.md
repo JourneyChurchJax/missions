@@ -4,7 +4,7 @@
 - [x] **Phase 2**: applications, references, deposits (public apply page, reference form, form builder, review and approve, deposit codes, CSV)
 - [x] **Phase 3**: gifts, checks and cash, expenses, donors, statements, traveler payments (giving page, deposit batches, donor pages, printable and emailed statements, expenses with receipts and reimbursements, traveler supporter list)
 - [x] **Phase 4**: email and text, parent view, trip packet PDF, check-in, incident log, calendar feeds, two-way chat (email works once mail_from is in config.php; texts need Twilio keys; packet is print-to-PDF)
-- [ ] **Phase 5**: Stripe, Planning Center, public fundraising pages, e-signatures, background checks, AFC flight sync
+- [x] **Phase 5**: Stripe, Planning Center, public fundraising pages, e-signatures, background checks, AFC flight sync (built; Stripe and Planning Center switch on when their keys are added to config.php. Flight sync = paste the airline/AIM email and it reads the flights. Background checks are tracked here and pulled from Planning Center.)
 
 # What's missing (as of October 1, 2026)
 

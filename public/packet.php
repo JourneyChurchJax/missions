@@ -30,7 +30,7 @@ $sec = function (string $k) use ($gd) { $b = $gd[$k]['body'] ?? ''; return is_pl
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title><?= e($t['name']) ?> trip packet · Journey Missions</title>
-<link rel="stylesheet" href="/assets/app.css?v=7">
+<link rel="stylesheet" href="/assets/app.css?v=8">
 <style>
 body{background:var(--sand)}
 .sheet{background:#fff;max-width:820px;margin:24px auto;padding:48px 56px;border-radius:var(--r-md);box-shadow:var(--sh-md);font-size:14.5px;line-height:1.5}

@@ -4,8 +4,8 @@ $tasks = all('SELECT * FROM tasks WHERE trip_id = ? ORDER BY due_date, id', [$id
 $goals = all('SELECT * FROM goals WHERE trip_id = ? ORDER BY due_date', [$id]);
 $doneMap = [];
 foreach (all('SELECT d.* FROM task_done d JOIN tasks t ON t.id = d.task_id WHERE t.trip_id = ?', [$id]) as $d) $doneMap[$d['task_id']][$d['person_id']] = $d;
-$traveler_tasks = array_values(array_filter($tasks, fn($k) => in_array($k['type'], ['traveler', 'upload', 'verify'], true)));
-$other_tasks = array_values(array_filter($tasks, fn($k) => !in_array($k['type'], ['traveler', 'upload', 'verify'], true)));
+$traveler_tasks = array_values(array_filter($tasks, fn($k) => in_array($k['type'], ['traveler', 'sign', 'upload', 'verify'], true)));
+$other_tasks = array_values(array_filter($tasks, fn($k) => !in_array($k['type'], ['traveler', 'sign', 'upload', 'verify'], true)));
 ?>
 <section>
   <div class="gh"><span>Who has done what · click a circle to mark done</span></div>
@@ -36,8 +36,9 @@ $other_tasks = array_values(array_filter($tasks, fn($k) => !in_array($k['type'],
       <?php foreach ($tasks as $k): $cnt = count($doneMap[$k['id']] ?? []); ?>
         <div class="cell" style="flex-wrap:wrap">
           <?= date_box_for($k['due_date']) ?>
-          <div class="grow"><strong><?= e($k['title']) ?></strong><div class="muted small"><?= e(TASK_TYPES[$k['type']] ?? $k['type']) ?><?= $k['minors_only'] ? ' · under 18 only' : '' ?><?= in_array($k['type'], ['traveler', 'upload', 'verify'], true) ? " · $cnt of " . count($trav) . ' done' : '' ?></div></div>
-          <?php if (in_array($k['type'], ['traveler', 'upload', 'verify'], true) && $cnt < count($trav)): ?>
+          <div class="grow"><strong><?= e($k['title']) ?></strong><div class="muted small"><?= e(TASK_TYPES[$k['type']] ?? $k['type']) ?><?= $k['minors_only'] ? ' · under 18 only' : '' ?><?= in_array($k['type'], ['traveler', 'sign', 'upload', 'verify'], true) ? " · $cnt of " . count($trav) . ' done' : '' ?></div></div>
+          <?php if ($k['type'] === 'sign'): ?><a class="small" href="/admin/signatures.php?task=<?= (int)$k['id'] ?>">Signatures</a><?php endif; ?>
+          <?php if (in_array($k['type'], ['traveler', 'sign', 'upload', 'verify'], true) && $cnt < count($trav)): ?>
             <form method="post" action="/action.php" class="inline" onsubmit="return confirm('Email a reminder to everyone who has not done this?')"><?= csrf() ?><input type="hidden" name="action" value="task_remind"><input type="hidden" name="id" value="<?= (int)$k['id'] ?>"><input type="hidden" name="email" value="1"><button class="link-btn">Remind</button></form>
           <?php endif; ?>
           <details class="edit"><summary>Edit</summary>

@@ -61,6 +61,7 @@ function seed(PDO $pdo): void {
     insert('activity', ['trip_id' => $bz, 'who' => 'Setup', 'what' => 'Brought the Belize trip over from ManagedMissions', 'created_at' => $now]);
     insert('activity', ['trip_id' => $il, 'who' => 'Setup', 'what' => 'Created the Israel trip with its dates', 'created_at' => $now]);
     seed_apps_real();
+    seed_phase5(false);
 }
 
 function seed_demo(PDO $pdo): void {
@@ -197,6 +198,7 @@ function seed_demo(PDO $pdo): void {
     seed_apps_demo();
     seed_money_demo();
     seed_comms_demo();
+    seed_phase5(true);
 }
 
 // ---------------- Applications (phase 2) ----------------
@@ -344,4 +346,38 @@ function seed_comms_demo(): void {
         'description' => 'Mild allergic reaction to a snack at the kickoff meeting. No EpiPen needed.', 'action_taken' => 'Gave water, checked the label, called her mom.',
         'parent_notified' => 1, 'resolved' => 1, 'reported_by' => 'Maya Bennett', 'created_at' => '2026-09-13 13:30:00']);
     insert('outbox', ['trip_id' => $bz, 'channel' => 'email', 'to_addr' => 'grace.okafor@example.com', 'subject' => 'Welcome to the Belize team', 'body' => 'Sample message', 'status' => 'not_sent', 'error' => 'Email is not set up yet', 'created_by' => 'Corey Rees', 'created_at' => '2026-09-12 10:00:00']);
+}
+
+// ---------------- Signatures, background checks, fundraising pages (phase 5) ----------------
+const WAIVER_TEXT = "I have read the Missions Trip Liability Waiver. I understand the risks of international travel and service, and I release Journey Church, its staff and volunteers from liability as the waiver describes.";
+const COC_TEXT = "I have read the Missions Code of Conduct and agree to follow it for the whole trip, including the team meetings before we leave.";
+function seed_phase5(bool $demo): void {
+    $now = now();
+    // The waiver and code of conduct become real e-signature tasks tied to their documents
+    foreach ([['Sign the liability waiver', 'Missions trip liability waiver', WAIVER_TEXT, 1], ['Sign the code of conduct', 'Missions code of conduct', COC_TEXT, 0]] as [$title, $doc, $text, $parent]) {
+        foreach (all('SELECT * FROM tasks WHERE title = ?', [$title]) as $tk) {
+            $fid = val('SELECT id FROM files WHERE trip_id = ? AND title = ?', [$tk['trip_id'], $doc]);
+            update('tasks', (int)$tk['id'], ['type' => 'sign', 'file_id' => $fid ? (int)$fid : null, 'description' => $text, 'parent_sign' => $parent, 'allow_self' => 1]);
+            foreach (all('SELECT d.*, p.first_name, p.preferred_name, p.last_name FROM task_done d JOIN people p ON p.id = d.person_id WHERE d.task_id = ?', [$tk['id']]) as $d)
+                insert('signatures', ['task_id' => $tk['id'], 'person_id' => $d['person_id'], 'signer_role' => 'traveler', 'signer_name' => full_name($d), 'agreement' => $text,
+                    'doc_title' => $doc, 'ip' => 'Recorded before e-signatures', 'signed_at' => $d['done_at']]);
+        }
+    }
+    q("UPDATE trips SET bg_required = 'leaders' WHERE bg_required IS NULL");
+    foreach (all('SELECT m.id, p.first_name, p.preferred_name, p.last_name FROM members m JOIN people p ON p.id = m.person_id WHERE m.page_slug IS NULL') as $m)
+        update('members', (int)$m['id'], ['page_slug' => unique_page_slug($m), 'page_status' => 'draft']);
+    if (!$demo) return;
+
+    foreach ([['Corey', 'clear', '2025-08-01', '2028-08-01'], ['Maya', 'requested', null, null], ['Taylor', 'clear', '2024-03-10', '2026-11-10']] as [$first, $st, $done, $exp]) {
+        $pid = val('SELECT p.id FROM people p JOIN members m ON m.person_id = p.id WHERE p.first_name = ? AND m.role = \'leader\'', [$first]);
+        if ($pid) insert('background_checks', ['person_id' => $pid, 'provider' => 'Protect My Ministry', 'status' => $st, 'requested_at' => $done ?: '2026-09-25', 'completed_at' => $done, 'expires_on' => $exp, 'created_by' => 'Sample', 'created_at' => $now]);
+    }
+    $stories = ["I'm going to Belize to help run VBS at a children's home and serve families in Belize City. Would you pray for our team and help me get there?",
+                "This summer I get to walk where Jesus walked and come home ready to serve our church. Thanks for being part of it!"];
+    foreach (all("SELECT m.*, t.slug AS tslug FROM members m JOIN trips t ON t.id = m.trip_id WHERE m.raised > 0 ORDER BY m.id") as $i => $m)
+        if ($i % 3 !== 2) update('members', (int)$m['id'], ['page_status' => $i % 5 === 4 ? 'pending' : 'live', 'page_story' => $stories[$m['tslug'] === 'israel' ? 1 : 0]]);
+    foreach (all('SELECT id FROM gifts WHERE person_id IS NOT NULL AND anonymous = 0 ORDER BY id LIMIT 6') as $i => $g)
+        update('gifts', (int)$g['id'], ['message' => ['So proud of you!', 'Praying for you and the team.', 'Go get em!', 'Love you, have an amazing trip.', 'Thankful you said yes.', 'Bring back stories!'][$i]]);
+    $g = one("SELECT * FROM gifts WHERE method = 'card' AND person_id IS NOT NULL ORDER BY id LIMIT 1");
+    if ($g) { $rid = insert('recurring', ['donor_id' => $g['donor_id'], 'trip_id' => $g['trip_id'], 'person_id' => $g['person_id'], 'amount' => $g['amount'], 'stripe_sub_id' => 'sub_sample', 'status' => 'active', 'created_at' => $now]); update('gifts', (int)$g['id'], ['recurring_id' => $rid]); }
 }

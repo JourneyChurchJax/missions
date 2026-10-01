@@ -46,7 +46,11 @@ function app_missing(array $app, array $f, array $p): string {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $f) {
     check_csrf();
     $act = (string)post('do');
-    if (!$open) { $err = 'This application is closed.'; }
+    if ($act === 'pay_deposit' && $app && $app['deposit_status'] === 'due' && stripe_ready()) {
+        try { header('Location: ' . stripe_checkout('app_deposit', (float)$app['deposit_due'], 'Application deposit · ' . $f['name'], ['app' => $app['token']], site_url('/apply/?t=' . $app['token'] . '&paid=1'), site_url('/apply/?t=' . $app['token']), $p['email'] ?: null)); exit; }
+        catch (Throwable $e) { $err = 'Could not start the payment. Try again in a minute.'; }
+    }
+    elseif (!$open) { $err = 'This application is closed.'; }
     elseif ($act === 'start') {
         if (post('website')) { header('Location: /apply/?f=' . urlencode($f['slug'])); exit; } // bots fill the hidden field
         $first = post('first_name'); $last = post('last_name'); $email = strtolower((string)post('email'));
@@ -123,7 +127,9 @@ $rels = ['', 'Parent/Guardian', 'Spouse', 'Sibling', 'Friend', 'Other'];
     <span class="pill<?= $app['status'] === 'approved' ? ' pill-ok' : '' ?>" style="align-self:flex-start"><?= $app['status'] === 'submitted' ? 'Sent' : e(APP_STATUS[$app['status']]) ?></span>
     <h1 class="disp"><?= $app['status'] === 'approved' ? "You're going." : 'Thanks, ' . e($p['preferred_name'] ?: $p['first_name']) . '.' ?></h1>
     <p style="margin:0;font-size:17px;line-height:1.55"><?= nl2br(e($f['submitted_message'] ?: "We got your application. The missions team will review it and get back to you soon.")) ?></p>
-    <?php if ($app['deposit_status'] === 'due'): ?><div class="note"><strong>Deposit: <?= money((float)$app['deposit_due']) ?></strong><div class="muted small">The missions team will send you a way to pay. Your spot is held while we review.</div></div><?php endif; ?>
+    <?php if ($app['deposit_status'] === 'due'): ?><div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><strong>Deposit: <?= money((float)$app['deposit_due']) ?></strong><div class="muted small"><?= stripe_ready() ? 'Pay now to hold your spot while we review.' : 'The missions team will send you a way to pay. Your spot is held while we review.' ?></div></div>
+      <?php if (stripe_ready()): ?><form method="post"><?= csrf() ?><input type="hidden" name="do" value="pay_deposit"><button class="btn btn-primary" type="submit">Pay deposit</button></form><?php endif; ?></div>
+    <?php elseif ($app['deposit_status'] === 'paid'): ?><div class="note"><strong>Deposit paid. Thank you!</strong></div><?php endif; ?>
   </section>
   <?php if ($refs): ?>
   <section class="tile xl" style="gap:12px"><strong style="font-size:18px">Your references</strong>
@@ -247,6 +253,6 @@ $rels = ['', 'Parent/Guardian', 'Spouse', 'Sibling', 'Friend', 'Other'];
 <?php endif; ?>
   <p class="muted small" style="text-align:center">Journey Church Missions</p>
 </main>
-<script src="/assets/app.js?v=5"></script>
+<script src="/assets/app.js?v=6"></script>
 </body>
 </html>

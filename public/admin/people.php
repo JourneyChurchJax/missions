@@ -18,7 +18,7 @@ admin_header('people');
 <main class="main">
   <div class="head">
     <div class="sub"><h1 class="disp">People</h1><div class="muted">Everyone who has applied, traveled or led<?= $q ? ' · results for “' . e($q) . '” · <a href="/admin/people.php">clear</a>' : '' ?></div></div>
-    <div style="display:flex;gap:12px"><a class="btn" href="#" data-say="Planning Center sync arrives in phase 5">Sync with Planning Center</a><a class="btn btn-primary" href="/admin/person.php">Add a person</a></div>
+    <div style="display:flex;gap:12px"><a class="btn" href="/admin/pco-import.php">Add from Planning Center</a><a class="btn btn-primary" href="/admin/person.php">Add a person</a></div>
   </div>
   <div class="seg sm" style="align-self:flex-start">
     <?php foreach (['all' => 'Everyone', 'travelers' => 'On a trip', 'leaders' => 'Leaders', 'none' => 'Not on a trip'] as $k => $l): ?><a class="tab<?= $filter === $k ? ' on' : '' ?>" href="/admin/people.php?f=<?= $k ?><?= $q ? '&q=' . urlencode($q) : '' ?>"><?= $l ?></a><?php endforeach; ?>

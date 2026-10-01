@@ -13,10 +13,14 @@ $reports = [
     'medical' => ['Medical and diet', 'Allergies, medications and diets. Leaders and admins only.'],
     'rooming' => ['Rooming and vans', 'Who sleeps where and who rides with whom'],
     'shirts' => ['T-shirt sizes', 'Counts by size, ready for the printer'],
+    'signatures' => ['Signed documents', 'Who has signed each waiver and form, and which parents still need to'],
+    'background' => ['Background checks', 'Leaders and adults who need a check, and where each one stands'],
   ],
   'Money' => [
     'fundraising' => ['Fundraising by person', 'Raised, goal and progress for every traveler'],
     'budget' => ['Budget', 'Every budget line with its total'],
+    'gifts' => ['Gifts', 'Every gift to this trip, with donor and method'],
+    'expenses' => ['Expenses', 'What was spent, by whom, and what still needs paying back'],
   ],
 ];
 
@@ -31,6 +35,11 @@ function report_rows(string $view, array $t): array {
         case 'rooming': return [['Traveler', 'Gender', 'Room', 'Van or seat'], array_map(function ($m) { $p = person((int)$m['person_id']); return [full_name($p), ucfirst((string)$p['gender']), $m['room'], $m['seat']]; }, $ms)];
         case 'shirts': $c = []; foreach ($ms as $m) { $s = person((int)$m['person_id'])['shirt'] ?: 'Not given'; $c[$s] = ($c[$s] ?? 0) + 1; } ksort($c); return [['Size', 'Count'], array_map(fn($k, $v) => [$k, $v], array_keys($c), $c)];
         case 'fundraising': return [['Traveler', 'Goal', 'Raised', 'Percent'], array_map(fn($m) => [full_name($m), money(member_goal($t, $m)), money((float)$m['raised']), pct((float)$m['raised'], member_goal($t, $m)) . '%'], $ms)];
+        case 'signatures': $sts = all("SELECT * FROM tasks WHERE trip_id = ? AND type = 'sign' ORDER BY due_date", [$id]);
+            return [array_merge(['Traveler'], array_column($sts, 'title')), array_map(function ($m) use ($sts) { $row = [full_name($m)]; foreach ($sts as $k) { [$a, $b, $c] = signature_state($k, (int)$m['person_id']); $row[] = !$a ? 'Not signed' : ($c && !$b ? 'Needs parent' : 'Signed'); } return $row; }, $ms)];
+        case 'background': return [['Name', 'Role', 'Status', 'Provider', 'Cleared', 'Expires'], array_map(function ($m) use ($t) { $bg = latest_bg((int)$m['person_id']); return [full_name($m), ucfirst($m['role']), BG_STATE_LABEL[bg_state($bg, $t['end_date'])], $bg['provider'] ?? '', fdate($bg['completed_at'] ?? null, 'm/d/Y'), fdate($bg['expires_on'] ?? null, 'm/d/Y')]; }, bg_needed($t))];
+        case 'gifts': return [['Date', 'Donor', 'For', 'Method', 'Amount'], array_map(fn($g) => [fdate($g['gift_date'], 'm/d/Y'), donor_name($g['donor_id'] ? donor((int)$g['donor_id']) : null), gift_for($g), GIFT_METHODS[$g['method']] ?? '', money((float)$g['amount'], 2)], gifts(['trip' => $id], 100000))];
+        case 'expenses': return [['Date', 'What', 'Type', 'Paid by', 'USD', 'Pay back'], array_map(fn($x) => [fdate($x['spent_on'], 'm/d/Y'), $x['description'], $x['type'], $x['paid_by'], money((float)$x['usd'], 2), $x['reimburse'] ? ($x['reimbursed_at'] ? 'Paid back' : 'Owed') : ''], all('SELECT * FROM expenses WHERE trip_id = ? ORDER BY spent_on', [$id]))];
         case 'budget': $n = max(1, count($ms)); return [['Line', 'Vendor', 'Each', 'Qty', 'Total'], array_map(fn($b) => [$b['description'], $b['vendor'], money((float)$b['unit_cost']), $b['per_traveler'] ? $n : $b['qty'], money((float)$b['unit_cost'] * ($b['per_traveler'] ? $n : (int)$b['qty']))], all('SELECT * FROM budget WHERE trip_id = ?', [$id]))];
     }
     return [[], []];

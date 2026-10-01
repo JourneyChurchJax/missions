@@ -3,12 +3,13 @@
 
 // ---------- Who is acting (preview: staff or a chosen traveler) ----------
 function acting_person_id(): ?int {
+    if (!empty($_SESSION['auth']) && empty($_SESSION['auth']['staff'])) return (int)$_SESSION['auth']['person_id'];
     if (!empty($_SESSION['person_id']) && val('SELECT COUNT(*) FROM members WHERE person_id = ?', [(int)$_SESSION['person_id']])) return (int)$_SESSION['person_id'];
     $id = val("SELECT p.id FROM people p JOIN members m ON m.person_id = p.id WHERE m.role = 'traveler' ORDER BY p.id LIMIT 1");
     return $id ? (int)$id : null;
 }
 function current_actor_name(): string {
-    if (($_SESSION['view'] ?? 'staff') === 'staff') return 'Adam Hardegree';
+    if (($_SESSION['view'] ?? 'staff') === 'staff') return $_SESSION['auth']['name'] ?? 'Adam Hardegree';
     $p = person(acting_person_id() ?? 0);
     return $p ? full_name($p) : 'Someone';
 }
@@ -80,14 +81,14 @@ function trip_goal(array $trip): float {
 }
 
 // ---------- Tasks and readiness ----------
-const TASK_TYPES = ['traveler' => 'Traveler task', 'upload' => 'Upload a document', 'verify' => 'Confirm their info', 'leader' => 'Leader task', 'admin' => 'Admin task', 'staff' => 'Staff task'];
+const TASK_TYPES = ['traveler' => 'Traveler task', 'sign' => 'Sign a document', 'upload' => 'Upload a document', 'verify' => 'Confirm their info', 'leader' => 'Leader task', 'admin' => 'Admin task', 'staff' => 'Staff task'];
 function traveler_tasks(int $trip_id): array {
-    return all("SELECT * FROM tasks WHERE trip_id = ? AND type IN ('traveler','upload','verify') ORDER BY due_date", [$trip_id]);
+    return all("SELECT * FROM tasks WHERE trip_id = ? AND type IN ('traveler','sign','upload','verify') ORDER BY due_date", [$trip_id]);
 }
 function tasks_for(int $trip_id, int $person_id): array {
     $p = person($person_id); $trip = trip($trip_id);
-    $rows = all("SELECT t.*, d.done_at, d.file_id FROM tasks t LEFT JOIN task_done d ON d.task_id = t.id AND d.person_id = ?
-                 WHERE t.trip_id = ? AND t.type IN ('traveler','upload','verify') ORDER BY t.due_date", [$person_id, $trip_id]);
+    $rows = all("SELECT t.*, t.file_id AS doc_id, d.done_at, d.file_id FROM tasks t LEFT JOIN task_done d ON d.task_id = t.id AND d.person_id = ?
+                 WHERE t.trip_id = ? AND t.type IN ('traveler','sign','upload','verify') ORDER BY t.due_date", [$person_id, $trip_id]);
     return array_values(array_filter($rows, fn($t) => !$t['minors_only'] || ($p && $trip && is_minor($p, $trip['start_date']))));
 }
 function readiness(int $trip_id, int $person_id): array {
@@ -116,6 +117,8 @@ function trip_alerts(array $trip): array {
     $missing = array_values(array_filter(travelers($id), fn($m) => !passport_ok($m, $trip)));
     if (count($missing) === 1) $alerts[] = [full_name($missing[0]) . ' has no valid passport on file', 'Must be valid through ' . fdate($trip['passport_valid_through'] ?: $trip['end_date']), "/admin/trip.php?id=$id&tab=team"];
     elseif ($missing) $alerts[] = [count($missing) . ' travelers need a valid passport', implode(', ', array_map('full_name', array_slice($missing, 0, 3))) . (count($missing) > 3 ? ' and more' : ''), "/admin/reports.php?trip=$id&view=readiness"];
+    $bgmiss = array_values(array_filter(bg_needed($trip), fn($m) => !in_array(bg_state(latest_bg((int)$m['person_id']), $trip['end_date']), ['ok'], true)));
+    if ($bgmiss) $alerts[] = [count($bgmiss) === 1 ? full_name($bgmiss[0]) . ' needs a background check' : count($bgmiss) . ' people need background checks', implode(', ', array_map('full_name', array_slice($bgmiss, 0, 3))), "/admin/reports.php?trip=$id&view=background"];
     $unflown = val("SELECT COUNT(*) FROM flights WHERE trip_id = ? AND (flight_no IS NULL OR flight_no = '' OR flight_no LIKE '[%')", [$id]);
     if ($unflown) $alerts[] = ['Flights not booked yet', 'Add flight numbers when the group is ticketed', "/admin/trip.php?id=$id&tab=travel"];
     return $alerts;

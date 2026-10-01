@@ -35,6 +35,10 @@ $block = function (string $k, string $label) use ($gd) { $b = $gd[$k]['body'] ??
   </section>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-primary" href="/packet.php?p=<?= e($g['token']) ?>" target="_blank">Trip packet (print or PDF)</a><a class="btn" href="<?= e(cal_url('t', cal_token_for_trip($tid))) ?>">Add to my calendar</a></div>
 
+  <?php $to_sign = array_values(array_filter($tasks, fn($k) => $k['type'] === 'sign' && needs_parent_signature($k, (int)$kid['id']) && !signature_state($k, (int)$kid['id'])[1]));
+  if ($to_sign): ?><section class="tile xl" style="gap:12px;box-shadow:inset 0 0 0 2px var(--ember),var(--sh-sm)"><strong style="font-size:18px">Needs your signature</strong>
+    <?php foreach ($to_sign as $k): ?><div class="cell" style="padding:0"><div class="grow"><strong><?= e($k['title']) ?></strong><div class="muted small">Because <?= e($name) ?> is under 18, a parent or guardian signs too<?= $k['due_date'] ? ' · due ' . fdate($k['due_date'], 'M j') : '' ?></div></div><a class="btn btn-primary" href="/sign.php?g=<?= e($g['token']) ?>&task=<?= (int)$k['id'] ?>">Read and sign</a></div><?php endforeach; ?>
+  </section><?php endif; ?>
   <?php if ($tasks && $done < count($tasks)): ?><section><div class="gh">Still to do</div><div class="group"><?php foreach ($tasks as $k) if (!$k['done_at']): ?><div class="cell"><?= date_box_for($k['due_date']) ?><div class="grow"><strong><?= e($k['title']) ?></strong><?= $k['description'] ? '<div class="muted small">' . e($k['description']) . '</div>' : '' ?></div></div><?php endif; ?></div></section><?php endif; ?>
 
   <?php if ($flights): ?><section><div class="gh">Flights</div><div class="group"><?php foreach ($flights as $f): ?><div class="cell"><div class="grow"><strong><?= e($f['flight_no']) ?> · <?= e($f['from_code']) ?> → <?= e($f['to_code']) ?></strong><div class="muted small"><?= $f['departs_at'] ? fdate($f['departs_at'], 'l, M j · g:i A') : 'Time to be announced' ?><?= $f['notes'] ? ' · ' . e($f['notes']) : '' ?></div></div></div><?php endforeach; ?></div></section><?php endif; ?>
@@ -52,6 +56,6 @@ $block = function (string $k, string $label) use ($gd) { $b = $gd[$k]['body'] ??
   <p class="muted small" style="text-align:center">This page is private to you. Please don't share the link. Medical and passport details are never shown here.</p>
 </main>
 <?php endif; ?>
-<script src="/assets/app.js?v=5"></script>
+<script src="/assets/app.js?v=6"></script>
 </body>
 </html>
