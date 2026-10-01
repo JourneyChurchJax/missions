@@ -11,7 +11,10 @@ $budget_fields = function (array $b) use ($types) { ?>
   <div class="r3"><label class="lab">Cost each<input type="number" step="0.01" name="unit_cost" value="<?= e($b['unit_cost'] ?? '') ?>" required></label><label class="lab">Quantity<input type="number" name="qty" value="<?= e($b['qty'] ?? 1) ?>"></label><label class="lab">Date<input type="date" name="est_date" value="<?= e($b['est_date'] ?? '') ?>"></label></div>
   <label class="chk"><input type="checkbox" name="per_traveler" value="1"<?= !empty($b['per_traveler']) ? ' checked' : '' ?>> One per traveler (quantity follows team size)</label>
 <?php };
+$bview = ($_GET['view'] ?? '') === 'spent' ? 'spent' : 'plan';
 ?>
+<nav class="seg" aria-label="Budget view" style="align-self:flex-start"><a class="tab<?= $bview === 'plan' ? ' on' : '' ?>" href="/admin/trip.php?id=<?= $id ?>&tab=budget">The plan</a><a class="tab<?= $bview === 'spent' ? ' on' : '' ?>" href="/admin/trip.php?id=<?= $id ?>&tab=budget&view=spent">What we spent</a></nav>
+<?php if ($bview === 'spent') { require __DIR__ . '/_expenses.php'; return; } ?>
 <section class="g4">
   <div class="tile"><div class="k">Total budget</div><div class="disp v"><?= money($total) ?></div></div>
   <div class="tile"><div class="k">Travelers</div><div class="disp v"><?= count($trav) ?></div></div>
@@ -37,6 +40,6 @@ $budget_fields = function (array $b) use ($types) { ?>
     <details class="add" open><summary>Add a budget line</summary><div class="body">
       <form class="form" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="budget_save"><input type="hidden" name="trip_id" value="<?= $id ?>"><?php $budget_fields(['qty' => 1]); ?><button class="btn btn-dark">Add</button></form>
     </div></details>
-    <section class="note"><strong>Expenses come in phase 3</strong><div class="muted small">You'll log what was actually spent, with currency, and compare it to this budget.</div></section>
+    <section class="note"><strong>Spent so far: <?= money(trip_spent($id)) ?></strong><div class="muted small">Log real spending, receipts and reimbursements under <a href="/admin/trip.php?id=<?= $id ?>&tab=budget&view=spent">What we spent</a>.</div></section>
   </aside>
 </div>

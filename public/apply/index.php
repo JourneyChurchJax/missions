@@ -99,6 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $f) {
                 $touch(['status' => 'submitted', 'submitted_at' => now(), 'deposit_due' => $due, 'deposit_status' => $dstatus,
                     'discount_code' => $label, 'step' => 'review']);
                 if ($app['choice1']) log_activity((int)$app['choice1'], full_name($p) . ' applied');
+                $first = $p['preferred_name'] ?: $p['first_name'];
+                send_email((string)$p['email'], 'We got your application', "Hi $first,\n\nThanks for applying for " . $f['name'] . ". The missions team will review it and be in touch.\n\nCheck on it anytime: " . site_url('/apply/?t=' . $app['token']), null, (int)$p['id']);
+                foreach (app_refs((int)$app['id']) as $rr)
+                    send_email((string)$rr['email'], 'Would you be a reference for ' . full_name($p) . '?', "Hi " . strtok((string)$rr['name'], ' ') . ",\n\n" . full_name($p) . " is applying for " . $f['name'] . " with Journey Church and listed you as a reference. It takes about five minutes:\n\n" . ref_url($rr) . "\n\nOnly the missions team will read your answers. Thank you!", null, (int)$p['id']);
                 header('Location: /apply/?t=' . $app['token'] . '&done=1'); exit;
             }
         }
@@ -243,6 +247,6 @@ $rels = ['', 'Parent/Guardian', 'Spouse', 'Sibling', 'Friend', 'Other'];
 <?php endif; ?>
   <p class="muted small" style="text-align:center">Journey Church Missions</p>
 </main>
-<script src="/assets/app.js?v=4"></script>
+<script src="/assets/app.js?v=5"></script>
 </body>
 </html>

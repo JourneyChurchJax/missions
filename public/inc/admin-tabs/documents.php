@@ -1,6 +1,6 @@
 <?php
 // Trip workspace · Documents (posted by staff, plus what travelers uploaded)
-$docs = all("SELECT * FROM files WHERE trip_id = ? AND person_id IS NULL ORDER BY kind, id", [$id]);
+$docs = all("SELECT * FROM files WHERE trip_id = ? AND person_id IS NULL AND kind NOT IN ('photo', 'receipt') ORDER BY kind, id", [$id]);
 $uploads = all("SELECT f.*, p.first_name, p.preferred_name, p.last_name FROM files f JOIN people p ON p.id = f.person_id WHERE f.trip_id = ? ORDER BY f.id DESC", [$id]);
 $n = count($trav);
 ?>

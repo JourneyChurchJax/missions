@@ -47,6 +47,6 @@ public_open('Reference');
 <?php endif; ?>
   <p class="muted small" style="text-align:center">Journey Church Missions</p>
 </main>
-<script src="/assets/app.js?v=4"></script>
+<script src="/assets/app.js?v=5"></script>
 </body>
 </html>

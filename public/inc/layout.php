@@ -19,7 +19,7 @@ function page_open(string $title): void {
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=6">
+<link rel="stylesheet" href="/assets/app.css?v=7">
 </head>
 <body>
 <div class="preview"><?= demo_on() ? '<strong>Demo data on</strong> · ' : '' ?>Preview · <?= $who ?> · <a href="/">Switch view</a><?= ($_SESSION['view'] ?? 'staff') === 'staff' ? ' · <a href="/admin/settings.php?s=demo">Demo data</a>' : '' ?> · <a href="/signout.php">Sign out</a></div>
@@ -27,7 +27,7 @@ function page_open(string $title): void {
 
 function page_close(): void { $f = flash(); ?>
 <div class="toast<?= $f ? ' show' : '' ?>" role="status" aria-live="polite"><?= e($f) ?></div>
-<script src="/assets/app.js?v=4"></script>
+<script src="/assets/app.js?v=5"></script>
 </body>
 </html>
 <?php }
@@ -42,7 +42,7 @@ function public_open(string $title): void { ?>
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=6">
+<link rel="stylesheet" href="/assets/app.css?v=7">
 </head>
 <body class="pub">
 <header class="pub-top"><?= logo(210, false, 'https://journeychurch.org') ?></header>
@@ -108,3 +108,28 @@ function soft(?string $text): string {
     $h = nl2br(e($text));
     return preg_replace('/\[([^\]]+)\]/', '<span class="ph">[$1]</span>', $h);
 }
+
+// ---------- Chat ----------
+function chat_is_mine(array $m, bool $staff, ?int $me): bool { return $staff ? ((int)$m['staff'] === 1 && !$m['person_id']) : ((int)$m['person_id'] === (int)$me); }
+function chat_bubble(array $m, bool $mine): string {
+    return '<div class="' . ($mine ? 'mine' : 'them') . '" data-id="' . (int)$m['id'] . '">' . ($mine ? '' : '<div class="small" style="font-weight:600;padding-bottom:2px">' . e($m['author']) . ($m['staff'] ? ' · Leader' : '') . '</div>')
+        . nl2br(e($m['body'])) . '<div class="small" style="opacity:.6;padding-top:4px">' . date('M j, g:i A', strtotime($m['created_at'])) . '</div></div>';
+}
+// Messages plus a composer that sends without reloading and checks for new messages every few seconds
+function chat_box(int $trip_id, string $thread, bool $staff, ?int $me, string $empty, array $extra = []): void {
+    $msgs = chat_messages($trip_id, $thread);
+    $items = [];
+    foreach ($msgs as $m) $items[] = [$m['created_at'], chat_bubble($m, chat_is_mine($m, $staff, $me))];
+    foreach ($extra as $x) $items[] = $x; // [created_at, html] for announcements shown in the team thread
+    usort($items, fn($a, $b) => strcmp($a[0], $b[0]));
+    $last = $msgs ? (int)end($msgs)['id'] : 0; ?>
+    <div class="bubbles" data-chat="<?= e("/chat.php?trip=$trip_id&thread=$thread") ?>" data-after="<?= $last ?>" style="max-height:560px;overflow-y:auto">
+      <?php foreach ($items as [, $html]) echo $html; ?>
+      <?= $items ? '' : '<div class="empty" data-empty>' . e($empty) . '</div>' ?>
+    </div>
+    <form class="composer" method="post" action="/action.php" data-chat-form>
+      <?= csrf() ?><input type="hidden" name="action" value="chat_send"><input type="hidden" name="trip_id" value="<?= $trip_id ?>"><input type="hidden" name="thread" value="<?= e($thread) ?>">
+      <input type="text" name="body" placeholder="Write a message" autocomplete="off" required maxlength="4000" aria-label="Message">
+      <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+<?php }

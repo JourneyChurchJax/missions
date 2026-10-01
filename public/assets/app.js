@@ -64,4 +64,55 @@
     input.value = '';
     say('Sent (preview only)');
   });
+
+  // Gift form: show new-donor fields only when no saved donor is picked
+  document.querySelectorAll('select[data-newdonor]').forEach(sel => {
+    const box = sel.closest('form').querySelector('.newdonor');
+    const sync = () => { if (box) box.hidden = sel.value !== '0'; };
+    sel.addEventListener('change', sync); sync();
+  });
+
+  // Chat: send without reloading, then fetch anything new every 8 seconds
+  document.querySelectorAll('[data-chat]').forEach(box => {
+    const form = box.parentElement.querySelector('[data-chat-form]');
+    box.scrollTop = box.scrollHeight;
+    async function pull() {
+      try {
+        const r = await fetch(box.dataset.chat + '&after=' + box.dataset.after, { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const html = (await r.text()).trim();
+        if (!html) return;
+        box.querySelector('[data-empty]')?.remove();
+        box.insertAdjacentHTML('beforeend', html);
+        const ids = [...box.querySelectorAll('[data-id]')].map(x => +x.dataset.id);
+        box.dataset.after = Math.max(+box.dataset.after, ...ids);
+        box.scrollTop = box.scrollHeight;
+      } catch (e) {}
+    }
+    setInterval(pull, 8000);
+    if (form) form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(form); fd.append('ajax', '1');
+      const input = form.querySelector('input[name=body]');
+      if (!input.value.trim()) return;
+      input.value = '';
+      try { await fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' }); } catch (e) { say('Could not send. Try again.'); }
+      pull();
+    });
+  });
+
+  // Check-in: mark here or missing without reloading
+  document.querySelectorAll('[data-mark]').forEach(f => f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; const clearing = btn.classList.contains('btn-dark');
+    const fd = new FormData(f); fd.append('status', clearing ? '' : btn.value); fd.append('ajax', '1');
+    await fetch(f.action, { method: 'POST', body: fd, credentials: 'same-origin' });
+    f.querySelectorAll('button').forEach(b => b.classList.toggle('btn-dark', b === btn && !clearing));
+    const row = f.closest('[data-row]'); if (row) row.dataset.state = clearing ? '' : btn.value;
+    const root = f.closest('[data-checkin]'); if (root) {
+      const rows = [...root.querySelectorAll('[data-row]')];
+      root.querySelector('[data-here]').textContent = rows.filter(r => r.dataset.state === 'here').length;
+      root.querySelector('[data-missing]').textContent = rows.filter(r => r.dataset.state === 'missing').length;
+    }
+  }));
 })();

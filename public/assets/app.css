@@ -277,3 +277,5 @@ details.edit[open]{flex-basis:100%}
 .sum{display:grid;grid-template-columns:200px 1fr;gap:6px 16px;font-size:15px}
 .sum dt{color:var(--muted)}.sum dd{margin:0}
 @media (max-width:640px){.sum{grid-template-columns:1fr}.pub-main h1{font-size:34px}}
+.tbl td.wrap{white-space:normal;min-width:160px}
+.tbl details.edit[open]{position:relative}

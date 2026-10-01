@@ -27,6 +27,10 @@ Server-side settings live in `config.php`, which exists only on the server, in t
 <?php
 return [
     'preview_password' => 'choose-a-strong-password',
+    // Email (optional): turns on real sending. Without it, messages are saved in Settings → Email and text.
+    'mail_from' => 'missions@journeychurch.org',
+    // Texts (optional): a Twilio account
+    // 'twilio' => ['sid' => 'AC...', 'token' => '...', 'from' => '+19045550100'],
     // later: database, Stripe and Planning Center keys
 ];
 ```

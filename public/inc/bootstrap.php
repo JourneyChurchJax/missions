@@ -38,5 +38,6 @@ function require_preview(?string $view = null): void {
 require __DIR__ . '/db.php';
 require __DIR__ . '/models.php';
 require __DIR__ . '/apps.php';
-require __DIR__ . '/data.php';
+require __DIR__ . '/money.php';
+require __DIR__ . '/comms.php';
 require __DIR__ . '/layout.php';

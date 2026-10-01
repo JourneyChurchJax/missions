@@ -14,6 +14,7 @@ member_header('docs');
 <main class="main m">
   <div class="head">
     <div class="sub"><div class="muted" style="font-size:15px;font-weight:600"><?= e($t['name']) ?> · <?= e(date_range($t['start_date'], $t['end_date'])) ?></div><h1 class="disp">Documents</h1></div>
+    <a class="btn btn-primary" href="/packet.php" target="_blank">Trip packet (print or PDF)</a>
   </div>
 
   <div class="split" style="grid-template-columns:minmax(0,1fr) 360px;gap:40px">

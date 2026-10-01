@@ -37,6 +37,9 @@ $other_tasks = array_values(array_filter($tasks, fn($k) => !in_array($k['type'],
         <div class="cell" style="flex-wrap:wrap">
           <?= date_box_for($k['due_date']) ?>
           <div class="grow"><strong><?= e($k['title']) ?></strong><div class="muted small"><?= e(TASK_TYPES[$k['type']] ?? $k['type']) ?><?= $k['minors_only'] ? ' · under 18 only' : '' ?><?= in_array($k['type'], ['traveler', 'upload', 'verify'], true) ? " · $cnt of " . count($trav) . ' done' : '' ?></div></div>
+          <?php if (in_array($k['type'], ['traveler', 'upload', 'verify'], true) && $cnt < count($trav)): ?>
+            <form method="post" action="/action.php" class="inline" onsubmit="return confirm('Email a reminder to everyone who has not done this?')"><?= csrf() ?><input type="hidden" name="action" value="task_remind"><input type="hidden" name="id" value="<?= (int)$k['id'] ?>"><input type="hidden" name="email" value="1"><button class="link-btn">Remind</button></form>
+          <?php endif; ?>
           <details class="edit"><summary>Edit</summary>
             <form class="form" method="post" action="/action.php" style="padding-top:12px">
               <?= csrf() ?><input type="hidden" name="action" value="task_save"><input type="hidden" name="id" value="<?= (int)$k['id'] ?>"><input type="hidden" name="trip_id" value="<?= $id ?>">

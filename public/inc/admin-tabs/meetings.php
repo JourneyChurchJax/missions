@@ -4,6 +4,8 @@ $meetings = all('SELECT * FROM meetings WHERE trip_id = ? ORDER BY starts_at', [
 $present = [];
 foreach (all('SELECT a.* FROM attendance a JOIN meetings m ON m.id = a.meeting_id WHERE m.trip_id = ?', [$id]) as $a) $present[$a['meeting_id']][$a['person_id']] = true;
 ?>
+<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><strong>Trip calendar</strong><div class="muted small">Meetings, trip days and flights in your phone's calendar. It updates on its own.</div></div>
+  <span style="display:flex;gap:10px"><a class="btn" href="<?= e(cal_url('t', cal_token_for_trip($id))) ?>">Subscribe</a><button class="btn" type="button" data-copy="<?= e(str_replace('webcal://', 'https://', cal_url('t', cal_token_for_trip($id)))) ?>">Copy link</button></span></div>
 <div class="split">
   <section style="display:flex;flex-direction:column;gap:16px;min-width:0">
   <?php foreach ($meetings as $mt): $past = strtotime($mt['starts_at']) < time(); $here_n = count($present[$mt['id']] ?? []); ?>
@@ -41,6 +43,6 @@ foreach (all('SELECT a.* FROM attendance a JOIN meetings m ON m.id = a.meeting_i
         <button class="btn btn-dark" type="submit">Add meeting</button>
       </form>
     </div></details>
-    <section class="note"><strong>Travelers see it right away</strong><div class="muted small">Meetings show on each traveler's home and schedule. Calendar subscriptions and email reminders come in phase 4.</div></section>
+    <section class="note"><strong>Travelers see it right away</strong><div class="muted small">Meetings show on each traveler's home, schedule and calendar feed.</div></section>
   </aside>
 </div>

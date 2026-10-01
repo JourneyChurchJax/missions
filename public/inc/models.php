@@ -74,7 +74,7 @@ function trip_budget(int $trip_id): float {
     return array_sum(array_map(fn($b) => (float)$b['unit_cost'] * ($b['per_traveler'] ? $n : (int)$b['qty']), $rows));
 }
 function member_goal(array $trip, array $m): float { return (float)($m['goal'] ?: $trip['cost_per_person']); }
-function trip_raised(int $trip_id): float { return (float)val('SELECT COALESCE(SUM(raised),0) FROM members WHERE trip_id = ?', [$trip_id]); }
+function trip_raised(int $trip_id): float { return (float)val('SELECT COALESCE(SUM(raised),0) FROM members WHERE trip_id = ?', [$trip_id]) + team_gifts($trip_id); }
 function trip_goal(array $trip): float {
     $sum = 0; foreach (travelers((int)$trip['id']) as $m) $sum += member_goal($trip, $m); return $sum;
 }

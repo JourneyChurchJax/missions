@@ -21,7 +21,7 @@ member_header('schedule');
 <main class="main m">
   <div class="head">
     <div class="sub"><div class="muted" style="font-size:15px;font-weight:600"><?= e($t['name']) ?> · <?= e(date_range($t['start_date'], $t['end_date'])) ?></div><h1 class="disp">Schedule</h1></div>
-    <a class="btn btn-primary" href="#" data-say="Calendar subscriptions arrive in phase 4">Add it all to my calendar</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/packet.php" target="_blank">Trip packet</a><a class="btn btn-primary" href="<?= e(cal_url('p', cal_token_for_person($me_id))) ?>">Add it all to my calendar</a></div>
   </div>
 
   <section style="display:flex;flex-direction:column;gap:14px">

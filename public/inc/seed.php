@@ -195,6 +195,8 @@ function seed_demo(PDO $pdo): void {
         insert('activity', ['trip_id' => $t, 'who' => $who, 'what' => $what, 'created_at' => $now]);
     }
     seed_apps_demo();
+    seed_money_demo();
+    seed_comms_demo();
 }
 
 // ---------------- Applications (phase 2) ----------------
@@ -264,4 +266,82 @@ function seed_apps_demo(): void {
     $ref($a7, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a7, 'Friend or mentor', 'Taylor Sample', true);
     $a8 = $mk($fb, $qb, 'Dylan', 'Moore', 'waitlist', ['Through my older brother.', 'I want to go somewhere new and help.', 'No', '', ['Construction and work projects'], 'A friend', ''], $bz, ['dep' => 'due', 'note' => 'Team is nearly full. Offer the next open spot.']);
     $ref($a8, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a8, 'Friend or mentor', 'Casey Sample', true);
+}
+
+// ---------------- Money (phase 3) ----------------
+// Turns each sample traveler's "raised" amount into real gifts and payments that add up to it.
+function seed_money_demo(): void {
+    $now = now(); mt_srand(7);
+    $names = [['Maria', 'Lopez'], ['Ben', 'Dalton'], ['Pat', 'Walsh'], ['Lee', 'Huang'], ['Jo', 'Reyes'], ['Kim', 'Carter'], ['Sam', 'Nguyen'],
+              ['Alex', 'Murphy'], ['Robin', 'Price'], ['Terry', 'Stone'], ['Dana', 'Brooks'], ['Chris', 'Patel'], ['Jesse', 'Ward'], ['Morgan', 'Ellis'],
+              ['Shawn', 'Kelly'], ['Lynn', 'Ford'], ['Frank', 'Olsen'], ['Rosa', 'Diaz']];
+    $donors = [];
+    foreach ($names as $i => [$f, $l]) $donors[] = insert('donors', ['first_name' => $f, 'last_name' => $l, 'email' => strtolower($f . '.' . $l) . '@example.com',
+        'address' => (100 + $i * 7) . ' Sample St', 'city' => 'Jacksonville', 'state' => 'FL', 'zip' => '3220' . ($i % 9), 'created_at' => $now]);
+    $donors[] = insert('donors', ['org' => 'Sample Family Foundation', 'first_name' => 'Ruth', 'last_name' => 'Allen', 'email' => 'grants@example.org', 'created_at' => $now]);
+
+    $closed = insert('batches', ['name' => 'Sunday offering, Sep 27', 'deposit_date' => '2026-09-28', 'status' => 'closed', 'created_by' => 'Adam Hardegree', 'created_at' => '2026-09-27 13:00:00', 'closed_at' => '2026-09-28 10:00:00']);
+    $open = insert('batches', ['name' => 'Sunday offering, Oct 4', 'deposit_date' => '2026-10-05', 'status' => 'open', 'created_by' => 'Adam Hardegree', 'created_at' => $now]);
+    $methods = ['card', 'card', 'card', 'bank', 'check', 'card', 'cash'];
+    $gift = function (int $trip, ?int $person, float $amt, string $date, ?int $batchOverride = null) use ($donors, $methods, $closed, $now) {
+        $m = $methods[mt_rand(0, count($methods) - 1)];
+        $anon = mt_rand(1, 12) === 1;
+        $card = in_array($m, ['card', 'bank'], true);
+        insert('gifts', ['donor_id' => $m === 'cash' && mt_rand(0, 1) ? null : $donors[mt_rand(0, count($donors) - 1)], 'trip_id' => $trip, 'person_id' => $person,
+            'amount' => $amt, 'fee' => $card ? round($amt * ($m === 'bank' ? .008 : .029) + ($m === 'bank' ? 0 : .3), 2) : 0, 'method' => $m,
+            'check_no' => $m === 'check' ? (string)mt_rand(1001, 4999) : null, 'batch_id' => $batchOverride ?? (in_array($m, ['check', 'cash'], true) ? $closed : null),
+            'gift_date' => $date, 'anonymous' => $anon ? 1 : 0, 'source' => $card ? 'stripe' : 'manual', 'status' => 'cleared',
+            'thanked_at' => mt_rand(0, 2) ? '2026-09-30 12:00:00' : null, 'created_by' => 'Sample', 'created_at' => $now]);
+    };
+    foreach (all('SELECT * FROM members WHERE raised > 0') as $m) {
+        $left = (float)$m['raised'];
+        // Some travelers paid part themselves
+        if (mt_rand(0, 2) === 0 && $left >= 400) {
+            $mine = $left >= 1000 ? 300 : 150;
+            insert('payments', ['trip_id' => $m['trip_id'], 'person_id' => $m['person_id'], 'amount' => $mine, 'method' => 'card', 'kind' => 'payment', 'paid_on' => '2026-09-1' . mt_rand(0, 9), 'created_by' => 'Sample', 'created_at' => $now]);
+            $left -= $mine;
+        }
+        while ($left > 0.001) {
+            $amt = $left <= 150 ? $left : min($left, [50, 75, 100, 100, 150, 200, 250, 500][mt_rand(0, 7)]);
+            $gift((int)$m['trip_id'], (int)$m['person_id'], (float)$amt, '2026-0' . mt_rand(8, 9) . '-' . str_pad((string)mt_rand(1, 28), 2, '0', STR_PAD_LEFT));
+            $left -= $amt;
+        }
+    }
+    foreach (all('SELECT id FROM trips') as $i => $t) {
+        $gift((int)$t['id'], null, $i ? 500.0 : 250.0, '2026-09-21');
+        $gift((int)$t['id'], null, 100.0, '2026-10-01', $open);
+    }
+    $bz = (int)val("SELECT id FROM trips WHERE slug = 'belize'"); $il = (int)val("SELECT id FROM trips WHERE slug = 'israel'");
+    foreach ([[$bz, 'Airfare', 'Group airfare deposit', 'American Airlines', 1600, 'USD', 1, '2026-09-15', 'Church card'],
+              [$bz, 'Lodging', 'Adventures in Missions team deposit', 'Adventures in Missions', 800, 'USD', 1, '2026-09-20', 'Church check'],
+              [$bz, 'Supplies', 'VBS craft supplies', 'Hobby store', 186.40, 'USD', 1, '2026-09-29', 'Maya Bennett'],
+              [$il, 'Lodging', 'Tour deposit', 'Sample Tours', 2400, 'USD', 1, '2026-09-10', 'Church check'],
+              [$il, 'MISC', 'Welcome gifts for guides', 'Shuk vendor', 120, 'ILS', 0.27, '2026-09-25', 'Taylor Brooks']] as [$t, $type, $desc, $vendor, $amt, $cur, $rate, $date, $by]) {
+        insert('expenses', ['trip_id' => $t, 'type' => $type, 'description' => $desc, 'vendor' => $vendor, 'amount' => $amt, 'currency' => $cur, 'rate' => $rate,
+            'usd' => round($amt * $rate, 2), 'spent_on' => $date, 'paid_by' => $by, 'reimburse' => in_array($by, ['Maya Bennett', 'Taylor Brooks'], true) ? 1 : 0,
+            'reimbursed_at' => $by === 'Taylor Brooks' ? '2026-09-30 10:00:00' : null, 'created_by' => 'Sample', 'created_at' => $now]);
+    }
+}
+
+// ---------------- Communication and trip tools (phase 4) ----------------
+function seed_comms_demo(): void {
+    $now = now();
+    $bz = (int)val("SELECT id FROM trips WHERE slug = 'belize'");
+    foreach (all("SELECT p.* FROM people p JOIN members m ON m.person_id = p.id WHERE m.trip_id = ? AND p.ec1_rel = 'Parent/Guardian'", [$bz]) as $p)
+        insert('guardians', ['person_id' => $p['id'], 'name' => $p['ec1_name'], 'rel' => 'Parent', 'email' => strtolower(str_replace(' ', '.', (string)$p['ec1_name'])) . '@example.com',
+            'phone' => $p['ec1_phone'], 'token' => new_token(), 'created_at' => $now]);
+    $by = fn(string $first) => one("SELECT p.* FROM people p JOIN members m ON m.person_id = p.id WHERE m.trip_id = ? AND p.first_name = ?", [$bz, $first]);
+    $corey = $by('Corey'); $grace = $by('Grace'); $noah = $by('Noah'); $sofia = $by('Sofia');
+    foreach ([[$corey, 1, 'Hey team! Reply here with questions anytime.', '2026-09-28 18:02:00'],
+              [$grace, 0, 'Do we need to bring our own sheets?', '2026-09-28 19:15:00'],
+              [$corey, 1, 'Nope, the base has sheets and pillows. Bring a towel though.', '2026-09-28 19:31:00'],
+              [$sofia, 0, 'Can I pack my EpiPens in my carry-on?', '2026-09-30 20:10:00'],
+              [$corey, 1, 'Yes, carry them on and keep the pharmacy label. Maya will hold a backup.', '2026-09-30 20:40:00']] as [$p, $staff, $body, $when])
+        insert('chat', ['trip_id' => $bz, 'thread' => 'team', 'person_id' => $p['id'], 'author' => full_name($p), 'staff' => $staff, 'body' => $body, 'created_at' => $when]);
+    insert('chat', ['trip_id' => $bz, 'thread' => 'p' . $noah['id'], 'person_id' => $noah['id'], 'author' => full_name($noah), 'staff' => 0, 'body' => "My passport appointment is October 20. Is that still in time?", 'created_at' => '2026-09-29 12:05:00']);
+    insert('chat', ['trip_id' => $bz, 'thread' => 'p' . $noah['id'], 'person_id' => $corey['id'], 'author' => full_name($corey), 'staff' => 1, 'body' => 'Yes, plenty of time. Upload a photo of it when it arrives.', 'created_at' => '2026-09-29 12:30:00']);
+    insert('incidents', ['trip_id' => $bz, 'person_id' => $sofia['id'], 'happened_at' => '2026-09-13 13:10:00', 'kind' => 'medical', 'severity' => 'low',
+        'description' => 'Mild allergic reaction to a snack at the kickoff meeting. No EpiPen needed.', 'action_taken' => 'Gave water, checked the label, called her mom.',
+        'parent_notified' => 1, 'resolved' => 1, 'reported_by' => 'Maya Bennett', 'created_at' => '2026-09-13 13:30:00']);
+    insert('outbox', ['trip_id' => $bz, 'channel' => 'email', 'to_addr' => 'grace.okafor@example.com', 'subject' => 'Welcome to the Belize team', 'body' => 'Sample message', 'status' => 'not_sent', 'error' => 'Email is not set up yet', 'created_by' => 'Corey Rees', 'created_at' => '2026-09-12 10:00:00']);
 }

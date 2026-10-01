@@ -5,7 +5,7 @@ $t = isset($_GET['id']) ? trip((int)$_GET['id']) : trip_by_slug((string)($_GET['
 if (!$t) { header('Location: /admin/'); exit; }
 $id = (int)$t['id'];
 $tabs = ['overview' => 'Overview', 'team' => 'Team', 'tasks' => 'Tasks & goals', 'meetings' => 'Meetings', 'documents' => 'Documents',
-         'travel' => 'Flights & itinerary', 'guide' => 'Trip guide', 'budget' => 'Budget', 'giving' => 'Giving', 'updates' => 'Updates'];
+         'travel' => 'Flights & itinerary', 'guide' => 'Trip guide', 'budget' => 'Budget', 'giving' => 'Giving', 'updates' => 'Messages', 'ontrip' => 'On the trip'];
 $tab = array_key_exists($_GET['tab'] ?? '', $tabs) ? $_GET['tab'] : 'overview';
 $here = "/admin/trip.php?id=$id&tab=$tab";
 $team = members($id);
@@ -25,6 +25,7 @@ admin_header('trips');
         <div style="color:rgba(247,244,240,.85)"><?= e(trim($t['city'] . ', ' . $t['country'], ', ')) ?><?= $t['partner'] ? ' · with ' . e($t['partner']) : '' ?></div>
       </div>
       <div style="display:flex;gap:12px">
+        <a class="btn" style="background:rgba(247,244,240,.14);color:var(--cream)" href="/packet.php?trip=<?= $id ?>" target="_blank">Trip packet</a>
         <a class="btn" style="background:rgba(247,244,240,.14);color:var(--cream)" href="/admin/trip-edit.php?id=<?= $id ?>">Edit trip</a>
         <a class="btn btn-primary" href="/admin/trip.php?id=<?= $id ?>&tab=updates">Message the team</a>
       </div>

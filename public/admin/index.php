@@ -75,7 +75,7 @@ admin_header('trips');
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:20px">
-      <div class="tile dark" style="padding:28px;gap:8px"><div class="k">Raised this season</div><div class="disp" style="font-size:64px"><?= money($raised) ?></div><div style="color:rgba(247,244,240,.85)">Gifts connect in phase 3. These are sample amounts.</div></div>
+      <div class="tile dark" style="padding:28px;gap:8px"><div class="k">Raised this season</div><div class="disp" style="font-size:64px"><?= money($raised) ?></div><div style="color:rgba(247,244,240,.85)">Gifts and traveler payments for upcoming trips</div></div>
       <div class="g2">
         <div class="tile"><div class="k">Travelers ready</div><div class="disp v"><?= $total_ready ?> of <?= $total_travelers ?></div><div class="muted small">Every step done</div></div>
         <div class="tile"><div class="k">Tasks done</div><div class="disp v"><?= pct($done, max(1, $total)) ?>%</div><div class="muted small"><?= $done ?> of <?= $total ?></div></div>

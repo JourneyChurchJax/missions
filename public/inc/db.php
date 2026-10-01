@@ -2,7 +2,7 @@
 // Database: one SQLite file kept OUTSIDE public_html (missions.journeychurch.org/data/missions.sqlite).
 // To move to MySQL later, add 'db' => ['dsn' => 'mysql:host=...;dbname=...', 'user' => ..., 'pass' => ...] to config.php.
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 function data_dir(): string {
     $dir = dirname(__DIR__, 2) . '/data';
@@ -50,13 +50,13 @@ function schema(): array {
         'trips' => ['id' => 'pk', 'slug' => 'str', 'name' => 'str', 'public_name' => 'str', 'city' => 'str', 'country' => 'str',
             'partner' => 'str', 'start_date' => 'date', 'end_date' => 'date', 'description' => 'text', 'qualifications' => 'text',
             'cost_per_person' => 'money', 'max_team' => 'int', 'app_deadline' => 'date', 'status' => 'str', 'group_name' => 'str',
-            'passport_valid_through' => 'date', 'created_at' => 'datetime'],
+            'passport_valid_through' => 'date', 'cal_token' => 'str', 'created_at' => 'datetime'],
         'people' => ['id' => 'pk', 'first_name' => 'str', 'preferred_name' => 'str', 'last_name' => 'str', 'email' => 'str', 'phone' => 'str',
             'birth_date' => 'date', 'gender' => 'str', 'address' => 'str', 'city' => 'str', 'state' => 'str', 'zip' => 'str', 'shirt' => 'str',
             'passport_name' => 'str', 'passport_number' => 'str', 'passport_country' => 'str', 'passport_issued' => 'date', 'passport_expires' => 'date',
             'nationality' => 'str', 'ec1_name' => 'str', 'ec1_rel' => 'str', 'ec1_phone' => 'str', 'ec1_email' => 'str',
             'ec2_name' => 'str', 'ec2_rel' => 'str', 'ec2_phone' => 'str', 'health' => 'text', 'diet' => 'text', 'allergies' => 'text',
-            'meds' => 'text', 'other' => 'text', 'notes' => 'text', 'pco_id' => 'str', 'tags' => 'str', 'verified_at' => 'datetime', 'created_at' => 'datetime'],
+            'meds' => 'text', 'other' => 'text', 'notes' => 'text', 'pco_id' => 'str', 'tags' => 'str', 'verified_at' => 'datetime', 'cal_token' => 'str', 'created_at' => 'datetime'],
         'members' => ['id' => 'pk', 'trip_id' => 'int', 'person_id' => 'int', 'role' => 'str', 'traveling' => 'bool', 'goal' => 'money',
             'raised' => 'money', 'confirmation' => 'str', 'room' => 'str', 'seat' => 'str', 'created_at' => 'datetime'],
         'tasks' => ['id' => 'pk', 'trip_id' => 'int', 'title' => 'str', 'description' => 'text', 'type' => 'str', 'due_date' => 'date',
@@ -89,6 +89,28 @@ function schema(): array {
             'submitted_at' => 'datetime', 'decided_at' => 'datetime', 'created_at' => 'datetime', 'updated_at' => 'datetime'],
         'app_refs' => ['id' => 'pk', 'application_id' => 'int', 'ref_type' => 'str', 'name' => 'str', 'email' => 'str', 'phone' => 'str',
             'token' => 'str', 'status' => 'str', 'answers' => 'text', 'requested_at' => 'datetime', 'received_at' => 'datetime'],
+        // Phase 3: money
+        'donors' => ['id' => 'pk', 'first_name' => 'str', 'last_name' => 'str', 'org' => 'str', 'email' => 'str', 'phone' => 'str',
+            'address' => 'str', 'city' => 'str', 'state' => 'str', 'zip' => 'str', 'pco_id' => 'str', 'notes' => 'text', 'created_at' => 'datetime'],
+        'batches' => ['id' => 'pk', 'name' => 'str', 'deposit_date' => 'date', 'status' => 'str', 'created_by' => 'str', 'created_at' => 'datetime', 'closed_at' => 'datetime'],
+        'gifts' => ['id' => 'pk', 'donor_id' => 'int', 'trip_id' => 'int', 'person_id' => 'int', 'amount' => 'money', 'fee' => 'money',
+            'method' => 'str', 'check_no' => 'str', 'batch_id' => 'int', 'gift_date' => 'date', 'anonymous' => 'bool', 'note' => 'text',
+            'source' => 'str', 'status' => 'str', 'thanked_at' => 'datetime', 'created_by' => 'str', 'created_at' => 'datetime'],
+        'payments' => ['id' => 'pk', 'trip_id' => 'int', 'person_id' => 'int', 'amount' => 'money', 'method' => 'str', 'kind' => 'str',
+            'paid_on' => 'date', 'note' => 'text', 'created_by' => 'str', 'created_at' => 'datetime'],
+        'expenses' => ['id' => 'pk', 'trip_id' => 'int', 'type' => 'str', 'description' => 'str', 'vendor' => 'str', 'amount' => 'money',
+            'currency' => 'str', 'rate' => 'money', 'usd' => 'money', 'spent_on' => 'date', 'paid_by' => 'str', 'receipt_file_id' => 'int',
+            'reimburse' => 'bool', 'reimbursed_at' => 'datetime', 'created_by' => 'str', 'created_at' => 'datetime'],
+        // Phase 4: communication and on-the-trip tools
+        'outbox' => ['id' => 'pk', 'trip_id' => 'int', 'person_id' => 'int', 'channel' => 'str', 'to_addr' => 'str', 'subject' => 'str',
+            'body' => 'text', 'status' => 'str', 'error' => 'text', 'created_by' => 'str', 'created_at' => 'datetime'],
+        'guardians' => ['id' => 'pk', 'person_id' => 'int', 'name' => 'str', 'rel' => 'str', 'email' => 'str', 'phone' => 'str', 'token' => 'str', 'created_at' => 'datetime'],
+        'checkins' => ['id' => 'pk', 'trip_id' => 'int', 'label' => 'str', 'created_by' => 'str', 'created_at' => 'datetime'],
+        'checkin_marks' => ['id' => 'pk', 'checkin_id' => 'int', 'person_id' => 'int', 'status' => 'str', 'marked_at' => 'datetime'],
+        'incidents' => ['id' => 'pk', 'trip_id' => 'int', 'person_id' => 'int', 'happened_at' => 'datetime', 'kind' => 'str', 'severity' => 'str',
+            'description' => 'text', 'action_taken' => 'text', 'parent_notified' => 'bool', 'followup' => 'text', 'resolved' => 'bool',
+            'reported_by' => 'str', 'created_at' => 'datetime'],
+        'chat' => ['id' => 'pk', 'trip_id' => 'int', 'thread' => 'str', 'person_id' => 'int', 'author' => 'str', 'staff' => 'bool', 'body' => 'text', 'created_at' => 'datetime'],
     ];
 }
 
@@ -127,7 +149,10 @@ function migrate(PDO $pdo): void {
     $pdo->prepare($drv === 'mysql' ? 'REPLACE INTO meta (k, v) VALUES (?, ?)' : 'INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)')->execute(['schema', (string)SCHEMA_VERSION]);
     require_once __DIR__ . '/seed.php';
     if ($v === 0) { demo_on() ? seed_demo($pdo) : seed($pdo); }
-    elseif ($v < 2) { demo_on() ? seed_apps_demo() : seed_apps_real(); }
+    else {
+        if ($v < 2) { demo_on() ? seed_apps_demo() : seed_apps_real(); }
+        if ($v < 4) { if (demo_on()) { seed_money_demo(); seed_comms_demo(); } }
+    }
 }
 
 // Small query helpers

@@ -220,7 +220,9 @@ switch ($a) {
         if (!post('body')) { flash('Write something first.'); back(); }
         insert('announcements', ['trip_id' => $trip_id, 'title' => nn(post('title')), 'body' => post('body'), 'author' => current_actor_name(), 'created_at' => now()]);
         log_activity($trip_id, 'Posted an announcement');
-        flash('Posted. Email and text delivery comes in phase 4'); back();
+        $em = (bool)post('email'); $tx = (bool)post('text');
+        $r = ($em || $tx) ? broadcast($trip_id, team_recipients($trip_id, (bool)post('parents')), post('title') ?: trip($trip_id)['name'] . ' team update', (string)post('body'), $em, $tx) : [0, 0, 0];
+        flash('Posted to the team.' . sent_note($r, $em, $tx)); back();
     case 'announce_delete': need_staff($staff); delete_row('announcements', $id); flash('Deleted'); back();
 
     // ---------------- Budget ----------------
@@ -308,7 +310,13 @@ switch ($a) {
             if (!member_of($trip, (int)$app['person_id'])) insert('members', ['trip_id' => $trip, 'person_id' => (int)$app['person_id'], 'role' => 'traveler', 'traveling' => 1, 'raised' => 0, 'created_at' => now()]);
             $row['assigned_trip_id'] = $trip;
             log_activity($trip, 'Approved ' . full_name(person((int)$app['person_id'])) . ' from their application');
-            flash('Approved and added to ' . trip($trip)['name'] . '. Welcome emails arrive in phase 4.');
+            $ap = person((int)$app['person_id']); $tt = trip($trip);
+            if ($app['deposit_status'] === 'paid' && (float)$app['deposit_due'] > 0 && !val("SELECT COUNT(*) FROM payments WHERE trip_id = ? AND person_id = ? AND kind = 'deposit'", [$trip, (int)$app['person_id']])) {
+                insert('payments', ['trip_id' => $trip, 'person_id' => (int)$app['person_id'], 'amount' => (float)$app['deposit_due'], 'method' => 'other', 'kind' => 'deposit', 'paid_on' => date('Y-m-d'), 'note' => 'Application deposit', 'created_by' => current_actor_name(), 'created_at' => now()]);
+                sync_raised($trip, (int)$app['person_id']);
+            }
+            $sent = $ap['email'] ? send_email($ap['email'], "You're going to " . $tt['name'] . '!', "Hi " . ($ap['preferred_name'] ?: $ap['first_name']) . ",\n\nGreat news: you're on the " . $tt['name'] . " team (" . date_range($tt['start_date'], $tt['end_date']) . ").\n\nYour trip page has your checklist, schedule, documents and fundraising. Your leaders will share how to sign in.\n\nWe're so glad you're going.", $trip, (int)$app['person_id']) : false;
+            flash('Approved and added to ' . $tt['name'] . '.' . ($sent ? ' Welcome email sent.' : (mail_ready() ? '' : ' (Welcome email saved; email isn\'t set up yet.)')));
         } else flash(['waitlist' => 'Moved to the waitlist', 'declined' => 'Marked not this time', 'submitted' => 'Moved back to review'][$decision]);
         update('applications', $id, $row); back();
 
@@ -321,6 +329,145 @@ switch ($a) {
         need_staff($staff);
         update('app_refs', $id, ['status' => 'received', 'received_at' => now(), 'answers' => json_encode(['known' => post('note') ?: 'Received outside the app'])]);
         flash('Marked received'); back();
+
+    // ---------------- Money (phase 3) ----------------
+    case 'gift_save':
+        need_staff($staff);
+        $old = $id ? one('SELECT * FROM gifts WHERE id = ?', [$id]) : null;
+        $amt = round((float)post('amount'), 2);
+        if ($amt <= 0) { flash('Enter the gift amount.'); back(); }
+        $for = (string)post('for'); $gt = null; $gp = null;
+        if (preg_match('/^t(\d+)$/', $for, $mm)) $gt = (int)$mm[1];
+        elseif (preg_match('/^m(\d+)-(\d+)$/', $for, $mm)) { $gt = (int)$mm[1]; $gp = (int)$mm[2]; if (!member_of($gt, $gp)) { flash('That traveler is not on that trip.'); back(); } }
+        $donor_id = (int)post('donor_id') ?: find_or_make_donor((string)post('donor_first'), (string)post('donor_last'), (string)post('donor_email'), (string)post('donor_org'));
+        $method = array_key_exists(post('method'), GIFT_METHODS) ? post('method') : 'check';
+        $bid = (int)post('batch_id'); if ($bid && (!($b = batch($bid)) || $b['status'] !== 'open')) $bid = 0;
+        $row = ['donor_id' => $donor_id, 'trip_id' => $gt, 'person_id' => $gp, 'amount' => $amt, 'fee' => round((float)post('fee'), 2), 'method' => $method,
+                'check_no' => nn(post('check_no')), 'batch_id' => $bid ?: null, 'gift_date' => post('gift_date') ?: date('Y-m-d'), 'anonymous' => post('anonymous') ? 1 : 0, 'note' => nn(post('note'))];
+        if ($old) update('gifts', $id, $row);
+        else { $id = insert('gifts', $row + ['source' => 'manual', 'status' => 'cleared', 'created_by' => current_actor_name(), 'created_at' => now()]); log_activity($gt, 'Recorded a ' . money($amt, 2) . ' gift for ' . gift_for($row)); }
+        if ($old) sync_raised($old['trip_id'] ? (int)$old['trip_id'] : null, $old['person_id'] ? (int)$old['person_id'] : null);
+        sync_raised($gt, $gp);
+        flash($old ? 'Gift updated' : 'Gift recorded: ' . money($amt, 2)); back();
+    case 'gift_delete':
+        need_staff($staff);
+        if ($g = one('SELECT * FROM gifts WHERE id = ?', [$id])) { delete_row('gifts', $id); sync_raised($g['trip_id'] ? (int)$g['trip_id'] : null, $g['person_id'] ? (int)$g['person_id'] : null); }
+        flash('Gift removed'); back();
+    case 'gift_thank':
+        $g = one('SELECT * FROM gifts WHERE id = ?', [$id]);
+        if (!$g || (!$staff && (int)$g['person_id'] !== $me)) { http_response_code(403); exit('Not yours.'); }
+        update('gifts', $id, ['thanked_at' => $g['thanked_at'] ? null : now()]); flash($g['thanked_at'] ? 'Marked not thanked' : 'Marked thanked'); back();
+    case 'batch_save':
+        need_staff($staff);
+        $bid = insert('batches', ['name' => post('name') ?: 'Deposit ' . date('M j'), 'deposit_date' => post('deposit_date') ?: date('Y-m-d'), 'status' => 'open', 'created_by' => current_actor_name(), 'created_at' => now()]);
+        flash('Batch started. Add each check and cash gift.'); header("Location: /admin/giving.php?v=batches&batch=$bid"); exit;
+    case 'batch_close':
+        need_staff($staff);
+        $b = batch($id); update('batches', $id, $b['status'] === 'open' ? ['status' => 'closed', 'closed_at' => now()] : ['status' => 'open', 'closed_at' => null]);
+        flash($b['status'] === 'open' ? 'Batch closed. It matches the bank deposit.' : 'Batch reopened'); back();
+    case 'donor_save':
+        need_staff($staff);
+        $row = []; foreach (['first_name', 'last_name', 'org', 'email', 'phone', 'address', 'city', 'state', 'zip', 'notes'] as $k) $row[$k] = nn(post($k));
+        if (!$row['first_name'] && !$row['last_name'] && !$row['org']) { flash('Add a name.'); back(); }
+        if ($id) update('donors', $id, $row); else $id = insert('donors', $row + ['created_at' => now()]);
+        flash('Donor saved'); header("Location: /admin/donor.php?id=$id"); exit;
+    case 'payment_save':
+        need_staff($staff);
+        if (preg_match('/^m(\d+)-(\d+)$/', (string)post('for'), $mm)) { $trip_id = (int)$mm[1]; $_POST['person_id'] = $mm[2]; }
+        $pp = (int)post('person_id'); $amt = round((float)post('amount'), 2);
+        if (!member_of($trip_id, $pp) || $amt <= 0) { flash('Pick a traveler and an amount.'); back(); }
+        insert('payments', ['trip_id' => $trip_id, 'person_id' => $pp, 'amount' => $amt, 'method' => array_key_exists(post('method'), GIFT_METHODS) ? post('method') : 'check',
+            'kind' => array_key_exists(post('kind'), PAYMENT_KINDS) ? post('kind') : 'payment', 'paid_on' => post('paid_on') ?: date('Y-m-d'), 'note' => nn(post('note')), 'created_by' => current_actor_name(), 'created_at' => now()]);
+        sync_raised($trip_id, $pp); flash((PAYMENT_KINDS[post('kind')] ?? 'Payment') . ' recorded'); back();
+    case 'payment_delete':
+        need_staff($staff);
+        if ($pm = one('SELECT * FROM payments WHERE id = ?', [$id])) { delete_row('payments', $id); sync_raised((int)$pm['trip_id'], (int)$pm['person_id']); }
+        flash('Payment removed'); back();
+    case 'expense_save':
+        need_staff($staff);
+        $amt = round((float)post('amount'), 2); $cur = strtoupper(substr((string)(post('currency') ?: 'USD'), 0, 3));
+        $rate = $cur === 'USD' ? 1.0 : max(0.0001, (float)(post('rate') ?: 1));
+        if ($amt <= 0 || !post('description')) { flash('Add what it was and the amount.'); back(); }
+        $row = ['trip_id' => $trip_id, 'type' => in_array(post('type'), EXPENSE_TYPES, true) ? post('type') : 'MISC', 'description' => post('description'), 'vendor' => nn(post('vendor')),
+                'amount' => $amt, 'currency' => $cur, 'rate' => $rate, 'usd' => round($amt * $rate, 2), 'spent_on' => post('spent_on') ?: date('Y-m-d'), 'paid_by' => nn(post('paid_by')), 'reimburse' => post('reimburse') ? 1 : 0];
+        if ($fid = save_upload('receipt', $trip_id, null, 'Receipt: ' . post('description'), 'receipt', ['visible' => 0])) $row['receipt_file_id'] = $fid;
+        if ($id) update('expenses', $id, $row); else { insert('expenses', $row + ['created_by' => current_actor_name(), 'created_at' => now()]); log_activity($trip_id, 'Logged an expense: ' . post('description')); }
+        flash('Expense saved'); back();
+    case 'expense_delete': need_staff($staff); delete_row('expenses', $id); flash('Expense removed'); back();
+    case 'expense_reimbursed':
+        need_staff($staff);
+        $x = one('SELECT * FROM expenses WHERE id = ?', [$id]); update('expenses', $id, ['reimbursed_at' => $x['reimbursed_at'] ? null : now()]);
+        flash($x['reimbursed_at'] ? 'Marked not paid back' : 'Marked paid back'); back();
+
+    // ---------------- Communication and trip tools (phase 4) ----------------
+    case 'task_remind':
+        need_staff($staff);
+        $tk = one('SELECT * FROM tasks WHERE id = ?', [$id]);
+        $who = array_values(array_filter(travelers((int)$tk['trip_id']), fn($m) => !val('SELECT COUNT(*) FROM task_done WHERE task_id = ? AND person_id = ?', [$id, (int)$m['person_id']])));
+        $who = array_values(array_filter($who, fn($m) => in_array((int)$tk['id'], array_column(tasks_for((int)$tk['trip_id'], (int)$m['person_id']), 'id'))));
+        $people = array_map(fn($m) => ['person_id' => (int)$m['person_id'], 'name' => full_name($m), 'email' => $m['email'], 'phone' => $m['phone']], $who);
+        $msg = "Quick reminder: \"" . $tk['title'] . "\"" . ($tk['due_date'] ? ' is due ' . fdate($tk['due_date'], 'F j') : ' is still open') . ". You can do it from your trip page: " . site_url('/trip/');
+        $em = (bool)post('email', '1'); $tx = (bool)post('text');
+        $r = broadcast((int)$tk['trip_id'], $people, trip((int)$tk['trip_id'])['name'] . ': ' . $tk['title'], $msg, $em, $tx);
+        log_activity((int)$tk['trip_id'], 'Sent a reminder about ' . $tk['title']);
+        flash('Reminder for ' . count($people) . ' ' . (count($people) === 1 ? 'person' : 'people') . '.' . sent_note($r, $em, $tx)); back();
+    case 'guardian_save':
+        need_staff($staff);
+        $pp = (int)post('person_id');
+        if (!post('name')) { flash('Add their name.'); back(); }
+        insert('guardians', ['person_id' => $pp, 'name' => post('name'), 'rel' => nn(post('rel')) ?? 'Parent', 'email' => nn(strtolower((string)post('email'))), 'phone' => nn(post('phone')), 'token' => new_token(), 'created_at' => now()]);
+        flash('Parent added. Send them their private link.'); back();
+    case 'guardian_delete': need_staff($staff); delete_row('guardians', $id); flash('Parent removed. Their link no longer works.'); back();
+    case 'guardian_send':
+        need_staff($staff);
+        $g = one('SELECT * FROM guardians WHERE id = ?', [$id]); $kid = person((int)$g['person_id']);
+        $ok = $g['email'] && send_email($g['email'], 'Follow ' . ($kid['preferred_name'] ?: $kid['first_name']) . "'s mission trip", "Hi " . strtok($g['name'], ' ') . ",\n\nHere's your private page for " . full_name($kid) . "'s trip. It has the schedule, flights, packing list, who to call, and updates from the leaders:\n\n" . parent_url($g) . "\n\nPlease don't share this link.", null, (int)$g['person_id']);
+        flash($ok ? 'Link emailed to ' . $g['name'] : ($g['email'] ? 'Saved the email. Email isn\'t set up yet, so copy the link and text it.' : 'Add an email for them first, or copy the link.')); back();
+    case 'checkin_start':
+        need_staff($staff);
+        $cid = insert('checkins', ['trip_id' => $trip_id, 'label' => post('label') ?: 'Headcount ' . date('g:i A'), 'created_by' => current_actor_name(), 'created_at' => now()]);
+        header("Location: /admin/trip.php?id=$trip_id&tab=ontrip&c=$cid"); exit;
+    case 'checkin_mark':
+        need_staff($staff);
+        $cid = (int)post('checkin_id'); $pp = (int)post('person_id'); $st = in_array(post('status'), ['here', 'missing'], true) ? post('status') : null;
+        q('DELETE FROM checkin_marks WHERE checkin_id = ? AND person_id = ?', [$cid, $pp]);
+        if ($st) insert('checkin_marks', ['checkin_id' => $cid, 'person_id' => $pp, 'status' => $st, 'marked_at' => now()]);
+        if (post('ajax')) { http_response_code(204); exit; }
+        back();
+    case 'incident_save':
+        need_staff($staff);
+        if (!post('description')) { flash('Describe what happened.'); back(); }
+        $row = ['trip_id' => $trip_id, 'person_id' => (int)post('person_id') ?: null, 'happened_at' => (post('happened_at') ? str_replace('T', ' ', (string)post('happened_at')) : now()),
+                'kind' => in_array(post('kind'), ['medical', 'safety', 'behavior', 'lost', 'other'], true) ? post('kind') : 'other', 'severity' => in_array(post('severity'), ['low', 'medium', 'high'], true) ? post('severity') : 'low',
+                'description' => post('description'), 'action_taken' => nn(post('action_taken')), 'parent_notified' => post('parent_notified') ? 1 : 0, 'followup' => nn(post('followup'))];
+        if ($id) update('incidents', $id, $row); else { insert('incidents', $row + ['resolved' => 0, 'reported_by' => current_actor_name(), 'created_at' => now()]); log_activity($trip_id, 'Logged an incident report'); }
+        flash('Incident saved'); back();
+    case 'incident_resolve':
+        need_staff($staff);
+        $x = one('SELECT * FROM incidents WHERE id = ?', [$id]); update('incidents', $id, ['resolved' => $x['resolved'] ? 0 : 1]); flash($x['resolved'] ? 'Reopened' : 'Marked resolved'); back();
+    case 'chat_send':
+        $thread = (string)post('thread'); $body = trim((string)post('body'));
+        if (!chat_thread_ok($thread, $trip_id, $staff, $me)) { http_response_code(403); exit('Not your conversation.'); }
+        if ($body !== '') {
+            $actor = $staff ? null : person((int)$me);
+            insert('chat', ['trip_id' => $trip_id, 'thread' => $thread, 'person_id' => $staff ? null : $me, 'author' => $staff ? current_actor_name() : full_name($actor),
+                'staff' => $staff || in_array(member_of($trip_id, (int)$me)['role'] ?? '', ['leader', 'admin'], true) ? 1 : 0, 'body' => mb_substr($body, 0, 4000), 'created_at' => now()]);
+        }
+        if (post('ajax')) { http_response_code(204); exit; }
+        back();
+    case 'statements_email':
+        need_staff($staff);
+        $yr = (int)post('year') ?: (int)date('Y') - 1; $sent = 0; $skipped = 0;
+        foreach (all("SELECT d.*, SUM(g.amount) AS total FROM donors d JOIN gifts g ON g.donor_id = d.id WHERE g.status = 'cleared' AND g.gift_date BETWEEN ? AND ? GROUP BY d.id", ["$yr-01-01", "$yr-12-31"]) as $d) {
+            if (!$d['email']) { $skipped++; continue; }
+            $lines = array_map(fn($g) => fdate($g['gift_date'], 'M j') . '  ' . str_pad(money((float)$g['amount'], 2), 12, ' ', STR_PAD_LEFT) . '  ' . (GIFT_METHODS[$g['method']] ?? ''), gifts(['donor' => (int)$d['id'], 'year' => $yr]));
+            if (send_email($d['email'], "Your $yr giving statement from Journey Church", "Dear " . ($d['first_name'] ?: donor_name($d)) . ",\n\nThank you for supporting Journey Church missions in $yr. Here are your gifts:\n\n" . implode("\n", array_reverse($lines)) . "\n\nTotal: " . money((float)$d['total'], 2) . "\n\nNo goods or services were provided in exchange for these contributions. Please keep this for your tax records.")) $sent++;
+        }
+        flash(mail_ready() ? "Emailed $sent statements." . ($skipped ? " $skipped donors have no email; print theirs." : '') : 'Email isn\'t set up yet, so statements were saved, not sent. Print them instead.'); back();
+    case 'test_email':
+        need_staff($staff);
+        $ok = send_email((string)post('to'), 'Journey Missions test email', 'If you can read this, email from Journey Missions is working.');
+        flash($ok ? 'Test email sent. Check the inbox.' : (mail_ready() ? 'The server could not send it. Check the address and the mail settings.' : 'Email is not set up yet. Add mail_from to config.php.')); back();
 
     // ---------------- Demo data and photos ----------------
     case 'demo_toggle':
