@@ -237,6 +237,91 @@ switch ($a) {
         update('trips', $trip_id, ['cost_per_person' => round(trip_budget($trip_id) / $n, 2)]);
         flash('Goal per person now matches the budget'); back();
 
+    // ---------------- Applications (staff) ----------------
+    case 'form_save':
+        need_staff($staff);
+        $mode = in_array(post('trip_mode'), ['all', 'specific', 'none'], true) ? post('trip_mode') : 'specific';
+        $row = ['name' => post('name'), 'intro' => nn(post('intro')), 'closes_on' => nn(post('closes_on')), 'trip_mode' => $mode,
+                'trip_ids' => implode(',', array_map('intval', (array)($_POST['trip_ids'] ?? []))), 'choices' => post('choices') === '3' ? 3 : 1,
+                'refs_required' => max(0, min(5, (int)post('refs_required'))), 'ref_types' => nn(post('ref_types')), 'deposit' => (float)post('deposit'),
+                'deposit_tax' => post('deposit_tax') ? 1 : 0, 'photo_required' => post('photo_required') ? 1 : 0, 'submitted_message' => nn(post('submitted_message'))];
+        if (!$row['name']) { flash('Give the form a name.'); back(); }
+        if ($id) { update('app_forms', $id, $row); flash('Form saved'); header("Location: /admin/app-form.php?id=$id"); exit; }
+        $row += ['slug' => strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $row['name']), '-')) . '-' . substr(new_token(), 0, 4), 'published' => 0, 'created_at' => now()];
+        $new = insert('app_forms', $row);
+        foreach (all('SELECT * FROM app_questions WHERE form_id = (SELECT MIN(id) FROM app_forms)') as $qq) { unset($qq['id']); $qq['form_id'] = $new; insert('app_questions', $qq); }
+        flash('Form created with starter questions'); header("Location: /admin/app-form.php?id=$new"); exit;
+
+    case 'form_publish':
+        need_staff($staff);
+        $f = app_form($id); update('app_forms', $id, ['published' => $f['published'] ? 0 : 1]);
+        flash($f['published'] ? 'Form unpublished. No one can apply until you publish it again.' : 'Form published. Share the link.'); back();
+
+    case 'form_duplicate':
+        need_staff($staff);
+        $f = app_form($id); unset($f['id']);
+        $f['name'] .= ' (copy)'; $f['slug'] = preg_replace('/-[a-f0-9]{4}$/', '', $f['slug']) . '-' . substr(new_token(), 0, 4); $f['published'] = 0; $f['created_at'] = now();
+        $new = insert('app_forms', $f);
+        foreach (app_questions($id) as $qq) { unset($qq['id']); $qq['form_id'] = $new; insert('app_questions', $qq); }
+        foreach (app_discounts($id) as $d) { unset($d['id']); $d['form_id'] = $new; insert('app_discounts', $d); }
+        flash('Copied. Change what you need, then publish.'); header("Location: /admin/app-form.php?id=$new"); exit;
+
+    case 'q_save':
+        need_staff($staff);
+        $form = (int)post('form_id');
+        if (form_has_responses($form) && !$id) { flash('This form has responses, so questions are locked. Duplicate it to change questions.'); back(); }
+        $row = ['form_id' => $form, 'kind' => array_key_exists(post('kind'), Q_KINDS) ? post('kind') : 'short', 'label' => post('label'), 'help' => nn(post('help')),
+                'options' => nn(post('options')), 'required' => post('required') ? 1 : 0];
+        if (!$row['label']) { flash('Write the question first.'); back(); }
+        if ($id && form_has_responses($form)) unset($row['kind']);
+        if ($id) update('app_questions', $id, $row);
+        else { $row['sort'] = (int)val('SELECT COALESCE(MAX(sort),0)+1 FROM app_questions WHERE form_id = ?', [$form]); insert('app_questions', $row); }
+        flash('Question saved'); back();
+    case 'q_delete':
+        need_staff($staff);
+        $qq = one('SELECT * FROM app_questions WHERE id = ?', [$id]);
+        if ($qq && form_has_responses((int)$qq['form_id'])) { flash('This form has responses, so questions are locked.'); back(); }
+        delete_row('app_questions', $id); flash('Question removed'); back();
+    case 'q_move':
+        need_staff($staff);
+        $qq = one('SELECT * FROM app_questions WHERE id = ?', [$id]);
+        $list = app_questions((int)$qq['form_id']);
+        $ids = array_column($list, 'id'); $i = array_search($id, $ids); $j = post('dir') === 'up' ? $i - 1 : $i + 1;
+        if ($j >= 0 && $j < count($ids)) { [$ids[$i], $ids[$j]] = [$ids[$j], $ids[$i]]; foreach ($ids as $k => $qid) update('app_questions', (int)$qid, ['sort' => $k]); }
+        back();
+    case 'disc_save':
+        need_staff($staff);
+        $early = post('early_bird') ? 1 : 0;
+        insert('app_discounts', ['form_id' => (int)post('form_id'), 'code' => $early ? '' : strtoupper((string)post('code')), 'kind' => post('kind') === 'percent' ? 'percent' : 'amount',
+            'amount' => (float)post('amount'), 'early_bird' => $early, 'expires_on' => nn(post('expires_on'))]);
+        flash('Discount added'); back();
+    case 'disc_delete': need_staff($staff); delete_row('app_discounts', $id); flash('Discount removed'); back();
+
+    case 'app_decide':
+        need_staff($staff);
+        $app = application($id); $decision = post('decision');
+        if (!$app || !in_array($decision, ['approved', 'waitlist', 'declined', 'submitted'], true)) back();
+        $row = ['status' => $decision, 'decided_at' => now(), 'decided_by' => current_actor_name(), 'decision_note' => nn(post('note')) ?? $app['decision_note']];
+        if ($decision === 'approved') {
+            $trip = (int)post('trip_id') ?: (int)$app['choice1'];
+            if (!$trip) { flash('Pick a trip to approve them for.'); back(); }
+            if (!member_of($trip, (int)$app['person_id'])) insert('members', ['trip_id' => $trip, 'person_id' => (int)$app['person_id'], 'role' => 'traveler', 'traveling' => 1, 'raised' => 0, 'created_at' => now()]);
+            $row['assigned_trip_id'] = $trip;
+            log_activity($trip, 'Approved ' . full_name(person((int)$app['person_id'])) . ' from their application');
+            flash('Approved and added to ' . trip($trip)['name'] . '. Welcome emails arrive in phase 4.');
+        } else flash(['waitlist' => 'Moved to the waitlist', 'declined' => 'Marked not this time', 'submitted' => 'Moved back to review'][$decision]);
+        update('applications', $id, $row); back();
+
+    case 'app_deposit':
+        need_staff($staff);
+        $st = array_key_exists(post('status'), DEPOSIT_STATUS) ? post('status') : 'due';
+        update('applications', $id, ['deposit_status' => $st]); flash(DEPOSIT_STATUS[$st]); back();
+
+    case 'ref_received':
+        need_staff($staff);
+        update('app_refs', $id, ['status' => 'received', 'received_at' => now(), 'answers' => json_encode(['known' => post('note') ?: 'Received outside the app'])]);
+        flash('Marked received'); back();
+
     // ---------------- Demo data and photos ----------------
     case 'demo_toggle':
         need_staff($staff);

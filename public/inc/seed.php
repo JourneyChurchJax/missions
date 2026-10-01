@@ -60,6 +60,7 @@ function seed(PDO $pdo): void {
     $il = insert('trips', ['slug' => 'israel', 'name' => 'Israel', 'public_name' => 'Israel 2027', 'country' => 'Israel', 'start_date' => '2027-05-19', 'end_date' => '2027-05-28', 'status' => 'active', 'created_at' => $now]);
     insert('activity', ['trip_id' => $bz, 'who' => 'Setup', 'what' => 'Brought the Belize trip over from ManagedMissions', 'created_at' => $now]);
     insert('activity', ['trip_id' => $il, 'who' => 'Setup', 'what' => 'Created the Israel trip with its dates', 'created_at' => $now]);
+    seed_apps_real();
 }
 
 function seed_demo(PDO $pdo): void {
@@ -193,4 +194,74 @@ function seed_demo(PDO $pdo): void {
     foreach ([[$bz, 'Corey Rees', 'Posted the packing list'], [$bz, 'Grace Okafor', 'Uploaded: Upload a passport copy'], [$il, 'Taylor Brooks', 'Scheduled Israel info night'], [$bz, 'Corey Rees', 'Posted an announcement']] as [$t, $who, $what]) {
         insert('activity', ['trip_id' => $t, 'who' => $who, 'what' => $what, 'created_at' => $now]);
     }
+    seed_apps_demo();
+}
+
+// ---------------- Applications (phase 2) ----------------
+function seed_app_questions(int $form): void {
+    $qs = [
+        ['long', 'Tell us how you came to know Jesus', 'A few sentences is plenty.', '', 1],
+        ['long', 'Why do you want to go on this trip?', '', '', 1],
+        ['yesno', 'Have you been on a mission trip before?', '', '', 1],
+        ['short', 'If yes, where and when?', '', '', 0],
+        ['checkboxes', 'Where would you love to serve?', 'Pick any that fit.', "Kids and VBS\nWorship and music\nConstruction and work projects\nPrayer and home visits\nMedical or first aid\nPhotos and storytelling", 0],
+        ['choice', 'How did you hear about this trip?', '', "Sunday announcement\nA friend\nSocial media\nSmall group\nOther", 0],
+        ['long', 'Anything else we should know?', 'Health, schedule conflicts, questions for us.', '', 0],
+    ];
+    foreach ($qs as $i => [$k, $l, $h, $o, $r]) insert('app_questions', ['form_id' => $form, 'sort' => $i, 'kind' => $k, 'label' => $l, 'help' => $h, 'options' => $o, 'required' => $r]);
+}
+
+function seed_apps_real(): void {
+    if (val('SELECT COUNT(*) FROM app_forms')) return;
+    $bz = (int)val("SELECT id FROM trips WHERE slug = 'belize'");
+    $f = insert('app_forms', ['name' => 'Belize 2027', 'slug' => 'belize-2027', 'intro' => 'Apply to serve with Journey Church in Belize City, June 19–25, 2027.', 'closes_on' => '2027-01-05', 'published' => 0,
+        'trip_mode' => 'specific', 'trip_ids' => (string)$bz, 'choices' => 1, 'refs_required' => 0, 'ref_types' => '', 'deposit' => 0, 'deposit_tax' => 1, 'photo_required' => 0,
+        'submitted_message' => "Your application is in. We'll email you once it has been reviewed.", 'created_at' => now()]);
+    seed_app_questions($f);
+}
+
+function seed_apps_demo(): void {
+    if (val('SELECT COUNT(*) FROM app_forms')) return;
+    $now = now();
+    $bz = (int)val("SELECT id FROM trips WHERE slug = 'belize'");
+    $il = (int)val("SELECT id FROM trips WHERE slug = 'israel'");
+    $fb = insert('app_forms', ['name' => 'Belize 2027', 'slug' => 'belize-2027', 'intro' => 'Apply to serve with Journey Church in Belize City, June 19–25, 2027. Students going into 9th grade and older, and adults.', 'closes_on' => '2027-01-05', 'published' => 1,
+        'trip_mode' => 'specific', 'trip_ids' => (string)$bz, 'choices' => 1, 'refs_required' => 2, 'ref_types' => "Pastor or ministry leader\nFriend or mentor", 'deposit' => 100, 'deposit_tax' => 1, 'photo_required' => 0,
+        'submitted_message' => "Your application is in. We'll email your references and let you know once it has been reviewed.", 'created_at' => $now]);
+    seed_app_questions($fb);
+    insert('app_discounts', ['form_id' => $fb, 'code' => '', 'kind' => 'amount', 'amount' => 25, 'early_bird' => 1, 'expires_on' => '2026-11-01']);
+    insert('app_discounts', ['form_id' => $fb, 'code' => 'FAMILY', 'kind' => 'percent', 'amount' => 50, 'early_bird' => 0, 'expires_on' => '2027-01-05']);
+    $fi = insert('app_forms', ['name' => 'Israel 2027', 'slug' => 'israel-2027', 'intro' => 'Walk where Jesus walked, May 19–28, 2027. Adults 18 and older.', 'closes_on' => '2026-12-15', 'published' => 1,
+        'trip_mode' => 'specific', 'trip_ids' => (string)$il, 'choices' => 1, 'refs_required' => 1, 'ref_types' => 'Pastor or small group leader', 'deposit' => 250, 'deposit_tax' => 0, 'photo_required' => 0,
+        'submitted_message' => "Thanks for applying. Taylor will be in touch within a week.", 'created_at' => $now]);
+    seed_app_questions($fi);
+
+    $qb = app_questions($fb); $qi = app_questions($fi);
+    $ans = function (array $qs, array $vals): string { $o = []; foreach ($qs as $i => $q) if (isset($vals[$i])) $o[$q['id']] = $vals[$i]; return json_encode($o); };
+    $mk = function (int $form, array $qs, string $first, string $last, string $status, array $vals, int $trip, array $x = []) use ($now, $ans) {
+        $pid = (int)(val('SELECT id FROM people WHERE first_name = ? AND last_name = ?', [$first, $last]) ?: insert('people', ['first_name' => $first, 'last_name' => $last, 'email' => strtolower($first) . '@example.com', 'tags' => 'Applicant', 'created_at' => $now]));
+        return insert('applications', ['form_id' => $form, 'person_id' => $pid, 'status' => $status, 'token' => new_token(), 'step' => $status === 'draft' ? 'questions' : 'review', 'choice1' => $trip,
+            'answers' => $ans($qs, $vals), 'deposit_due' => $x['deposit'] ?? 100, 'deposit_status' => $x['dep'] ?? 'due', 'assigned_trip_id' => $status === 'approved' ? $trip : null,
+            'submitted_at' => $status === 'draft' ? null : ($x['sub'] ?? '2026-09-25 19:00:00'), 'decided_at' => in_array($status, ['approved', 'declined', 'waitlist'], true) ? '2026-09-28 10:00:00' : null,
+            'decided_by' => in_array($status, ['approved', 'declined', 'waitlist'], true) ? 'Corey Rees' : null, 'decision_note' => $x['note'] ?? null, 'created_at' => '2026-09-20 18:00:00', 'updated_at' => $now]);
+    };
+    $ref = function (int $app, string $type, string $name, bool $in) use ($now) {
+        insert('app_refs', ['application_id' => $app, 'ref_type' => $type, 'name' => $name, 'email' => strtolower(str_replace(' ', '.', $name)) . '@example.com', 'token' => new_token(),
+            'status' => $in ? 'received' : 'requested', 'requested_at' => '2026-09-26 09:00:00', 'received_at' => $in ? '2026-09-29 20:00:00' : null,
+            'answers' => $in ? json_encode(['known' => 'I have been their small group leader for three years.', 'faith' => 'Steady and growing. They serve every week without being asked.', 'team' => 'Calm, kind and quick to help. Great with kids.', 'concerns' => 'None that I know of.', 'recommend' => 'Yes, without reservation']) : null]);
+    };
+    $a1 = $mk($fb, $qb, 'Jamie', 'Ortiz', 'submitted', ['I gave my life to Jesus at youth camp when I was 14.', 'I want to love kids well and see how God is moving in Belize.', 'No', '', ['Kids and VBS', 'Worship and music'], 'A friend', ''], $bz, ['sub' => '2026-09-29 21:10:00', 'dep' => 'paid', 'deposit' => 75]);
+    $ref($a1, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a1, 'Friend or mentor', 'Kelly Sample', true);
+    $a2 = $mk($fb, $qb, 'Sam', 'Rivera', 'submitted', ['My grandmother took me to church every Sunday, and I made my faith my own in high school.', 'Serving is how I grow. I want to use my Spanish.', 'Yes', 'Dominican Republic, 2025', ['Prayer and home visits', 'Construction and work projects'], 'Sunday announcement', 'I have a soccer tournament the week before.'], $bz, ['sub' => '2026-09-27 16:00:00']);
+    $ref($a2, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a2, 'Friend or mentor', 'Alex Sample', false);
+    $a3 = $mk($fi, $qi, 'Alex', 'Kim', 'submitted', ['Through a college ministry.', 'To see the places I read about and come home teaching my kids.', 'No', '', ['Photos and storytelling'], 'Small group', ''], $il, ['deposit' => 250, 'dep' => 'paid']);
+    $ref($a3, 'Pastor or small group leader', 'Jordan Sample', true);
+    $a4 = $mk($fi, $qi, 'Chris', 'Lane', 'submitted', ['I was baptized at Journey last Easter.', 'I want my faith to come alive in a new way.', 'No', '', [], 'Social media', ''], $il, ['deposit' => 250]);
+    $ref($a4, 'Pastor or small group leader', 'Morgan Sample', false);
+    $mk($fb, $qb, 'Avery', 'Stone', 'draft', ['Still writing this.'], $bz, ['dep' => 'none']);
+    $mk($fb, $qb, 'Riley', 'Park', 'draft', [], $bz, ['dep' => 'none']);
+    $a7 = $mk($fb, $qb, 'Grace', 'Okafor', 'approved', ['At home with my family.', 'I loved serving kids at VBS this summer.', 'No', '', ['Kids and VBS'], 'A friend', ''], $bz, ['dep' => 'paid', 'note' => 'Great fit for the VBS team.']);
+    $ref($a7, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a7, 'Friend or mentor', 'Taylor Sample', true);
+    $a8 = $mk($fb, $qb, 'Dylan', 'Moore', 'waitlist', ['Through my older brother.', 'I want to go somewhere new and help.', 'No', '', ['Construction and work projects'], 'A friend', ''], $bz, ['dep' => 'due', 'note' => 'Team is nearly full. Offer the next open spot.']);
+    $ref($a8, 'Pastor or ministry leader', 'Pastor Sample', true); $ref($a8, 'Friend or mentor', 'Casey Sample', true);
 }

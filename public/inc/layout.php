@@ -19,7 +19,7 @@ function page_open(string $title): void {
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=5">
+<link rel="stylesheet" href="/assets/app.css?v=6">
 </head>
 <body>
 <div class="preview"><?= demo_on() ? '<strong>Demo data on</strong> · ' : '' ?>Preview · <?= $who ?> · <a href="/">Switch view</a><?= ($_SESSION['view'] ?? 'staff') === 'staff' ? ' · <a href="/admin/settings.php?s=demo">Demo data</a>' : '' ?> · <a href="/signout.php">Sign out</a></div>
@@ -30,6 +30,22 @@ function page_close(): void { $f = flash(); ?>
 <script src="/assets/app.js?v=4"></script>
 </body>
 </html>
+<?php }
+
+// Public pages (apply, reference): no preview banner, no app nav.
+function public_open(string $title): void { ?>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><?= e($title) ?> · Journey Missions</title>
+<link rel="icon" href="/assets/logo/mark-ember.png">
+<link rel="stylesheet" href="/assets/app.css?v=6">
+</head>
+<body class="pub">
+<header class="pub-top"><?= logo(210, false, 'https://journeychurch.org') ?></header>
 <?php }
 
 function admin_header(string $active): void {

@@ -2,7 +2,7 @@
 // Database: one SQLite file kept OUTSIDE public_html (missions.journeychurch.org/data/missions.sqlite).
 // To move to MySQL later, add 'db' => ['dsn' => 'mysql:host=...;dbname=...', 'user' => ..., 'pass' => ...] to config.php.
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 function data_dir(): string {
     $dir = dirname(__DIR__, 2) . '/data';
@@ -77,6 +77,18 @@ function schema(): array {
         'budget' => ['id' => 'pk', 'trip_id' => 'int', 'description' => 'str', 'type' => 'str', 'vendor' => 'str', 'unit_cost' => 'money',
             'qty' => 'int', 'per_traveler' => 'bool', 'est_date' => 'date'],
         'activity' => ['id' => 'pk', 'trip_id' => 'int', 'who' => 'str', 'what' => 'str', 'created_at' => 'datetime'],
+        // Phase 2: applications
+        'app_forms' => ['id' => 'pk', 'name' => 'str', 'slug' => 'str', 'intro' => 'text', 'closes_on' => 'date', 'published' => 'bool',
+            'trip_mode' => 'str', 'trip_ids' => 'str', 'choices' => 'int', 'refs_required' => 'int', 'ref_types' => 'text',
+            'deposit' => 'money', 'deposit_tax' => 'bool', 'photo_required' => 'bool', 'submitted_message' => 'text', 'created_at' => 'datetime'],
+        'app_questions' => ['id' => 'pk', 'form_id' => 'int', 'sort' => 'int', 'kind' => 'str', 'label' => 'str', 'help' => 'str', 'options' => 'text', 'required' => 'bool'],
+        'app_discounts' => ['id' => 'pk', 'form_id' => 'int', 'code' => 'str', 'kind' => 'str', 'amount' => 'money', 'early_bird' => 'bool', 'expires_on' => 'date'],
+        'applications' => ['id' => 'pk', 'form_id' => 'int', 'person_id' => 'int', 'status' => 'str', 'token' => 'str', 'step' => 'str',
+            'choice1' => 'int', 'choice2' => 'int', 'choice3' => 'int', 'answers' => 'text', 'discount_code' => 'str',
+            'deposit_due' => 'money', 'deposit_status' => 'str', 'assigned_trip_id' => 'int', 'decision_note' => 'text', 'decided_by' => 'str',
+            'submitted_at' => 'datetime', 'decided_at' => 'datetime', 'created_at' => 'datetime', 'updated_at' => 'datetime'],
+        'app_refs' => ['id' => 'pk', 'application_id' => 'int', 'ref_type' => 'str', 'name' => 'str', 'email' => 'str', 'phone' => 'str',
+            'token' => 'str', 'status' => 'str', 'answers' => 'text', 'requested_at' => 'datetime', 'received_at' => 'datetime'],
     ];
 }
 
@@ -113,7 +125,9 @@ function migrate(PDO $pdo): void {
         }
     }
     $pdo->prepare($drv === 'mysql' ? 'REPLACE INTO meta (k, v) VALUES (?, ?)' : 'INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)')->execute(['schema', (string)SCHEMA_VERSION]);
-    if ($v === 0) { require_once __DIR__ . '/seed.php'; demo_on() ? seed_demo($pdo) : seed($pdo); }
+    require_once __DIR__ . '/seed.php';
+    if ($v === 0) { demo_on() ? seed_demo($pdo) : seed($pdo); }
+    elseif ($v < 2) { demo_on() ? seed_apps_demo() : seed_apps_real(); }
 }
 
 // Small query helpers

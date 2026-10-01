@@ -1,7 +1,7 @@
 # Build plan
 
 - [x] **Phase 1** (Oct 1, 2026): database, trips (create, copy, cancel), team and full profiles, tasks with uploads and info checks, goals, meetings and attendance, documents with must-read tracking, trip guide, flights and itinerary, announcements, budget, printable reports (roster, emergency, medical, rooming, shirts, fundraising) with CSV
-- [ ] **Phase 2**: applications, references, deposits
+- [x] **Phase 2**: applications, references, deposits (public apply page, reference form, form builder, review and approve, deposit codes, CSV)
 - [ ] **Phase 3**: gifts, checks and cash, expenses, donors, statements, traveler payments
 - [ ] **Phase 4**: email and text, parent view, trip packet PDF, check-in, incident log, calendar feeds, two-way chat
 - [ ] **Phase 5**: Stripe, Planning Center, public fundraising pages, e-signatures, background checks, AFC flight sync

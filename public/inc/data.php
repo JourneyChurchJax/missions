@@ -1,11 +1,5 @@
 <?php
-// Sample data for features that aren't built on the database yet (applications in phase 2, gifts in phase 3).
-$applicants = [
-    ['name' => 'Jamie Ortiz', 'note' => 'Israel · first choice · references in', 'ago' => '2d'],
-    ['name' => 'Sam Rivera', 'note' => 'Israel · 1 reference out', 'ago' => '4d'],
-    ['name' => 'Alex Kim', 'note' => 'Israel · deposit paid', 'ago' => '6d'],
-    ['name' => 'Chris Lane', 'note' => 'Israel · under 18 · parent signed', 'ago' => '9d'],
-];
+// Sample data for features that aren't built on the database yet (gifts, until phase 3).
 $gifts = [
     ['Sep 30', 'Maria L.', 'Thomas · Belize', 'Apple Pay', 'Covered', 100],
     ['Sep 29', 'Anonymous', 'Israel team', 'Bank · monthly', '$0.25', 50],

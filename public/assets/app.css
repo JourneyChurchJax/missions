@@ -258,3 +258,22 @@ details.edit[open]{flex-basis:100%}
 .photo-grid figcaption{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;justify-content:flex-end}
 .photo-grid .cover{position:absolute;top:8px;left:8px;background:rgba(247,244,240,.92);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
 .photo-grid button{border:0;border-radius:999px;background:rgba(247,244,240,.92);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer}
+
+/* Public pages: apply + reference */
+.pub-top{display:flex;justify-content:center;padding:28px 16px 8px}
+.pub-main{max-width:760px;margin:0 auto;padding:16px 16px 80px;display:flex;flex-direction:column;gap:22px}
+.pub-main h1{margin:0;font-size:44px}
+.steps{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+.steps li{flex:1;min-width:84px;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.steps li::before{content:"";height:4px;border-radius:var(--r-pill);background:var(--sand)}
+.steps li.done::before{background:var(--ink)}
+.steps li.on{color:var(--ink)}.steps li.on::before{background:var(--ember)}
+.steps a{color:inherit;text-decoration:none}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.qhelp{font-weight:400;color:var(--muted);font-size:13px}
+.opts{display:flex;flex-direction:column;gap:8px;font-weight:400}
+.opts label{display:flex;gap:10px;align-items:center;background:var(--cream);border-radius:var(--r-sm);padding:12px 14px;cursor:pointer}
+.req{color:var(--ember-small)}
+.sum{display:grid;grid-template-columns:200px 1fr;gap:6px 16px;font-size:15px}
+.sum dt{color:var(--muted)}.sum dd{margin:0}
+@media (max-width:640px){.sum{grid-template-columns:1fr}.pub-main h1{font-size:34px}}
