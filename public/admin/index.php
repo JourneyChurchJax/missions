@@ -8,16 +8,15 @@ $total_travelers = array_sum(array_column($trips, 'travelers'));
 $total_ready = array_sum(array_column($trips, 'ready'));
 ?>
 <main class="main">
-  <div class="head">
-    <div class="sub">
-      <div class="muted" style="font-size:15px;font-weight:600"><?= $today->format('l, F j') ?></div>
-      <h1 class="disp">Good morning, Adam</h1>
-      <div class="muted"><?= count($trips) ?> trips coming up · <?= $total_travelers ?> people traveling</div>
+  <div class="bar-head">
+    <div>
+      <h1><?= greeting() ?>, Adam</h1>
+      <div class="muted small"><?= (new DateTimeImmutable())->format('l, F j') ?> · <?= count($trips) ?> trips coming up · <?= $total_travelers ?> people traveling</div>
     </div>
     <a class="btn btn-primary" href="#" data-say="New trip setup is coming next">New trip</a>
   </div>
 
-  <div class="chips" aria-label="Needs your attention">
+  <div class="chips" aria-label="Needs your attention" style="margin-top:-8px">
     <a class="chip" href="/admin/applications.php"><strong>4</strong> applications to review</a>
     <a class="chip" href="/admin/trip.php?t=belize"><strong>2</strong> pages to approve</a>
     <a class="chip" href="/admin/trip.php?t=belize">Belize goal vs budget</a>

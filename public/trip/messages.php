@@ -5,7 +5,7 @@ page_open('Messages');
 member_header('messages');
 ?>
 <main class="main m">
-  <h1 class="disp" style="margin:0;font-size:clamp(2.5rem,5vw,3.5rem)">Messages</h1>
+  <h1 class="disp" style="margin:0;font-size:clamp(1.875rem,3vw,2.375rem)">Messages</h1>
   <div class="msgs">
     <aside class="convs">
       <label class="sr" for="ms">Search messages</label>

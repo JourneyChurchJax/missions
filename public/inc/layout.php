@@ -18,7 +18,7 @@ function page_open(string $title): void { ?>
 <meta name="robots" content="noindex, nofollow">
 <title><?= e($title) ?> · Journey Missions</title>
 <link rel="icon" href="/assets/logo/mark-ember.png">
-<link rel="stylesheet" href="/assets/app.css?v=1">
+<link rel="stylesheet" href="/assets/app.css?v=3">
 </head>
 <body>
 <div class="preview">Preview with sample data · <a href="/">Switch view</a> · <a href="/signout.php">Sign out</a></div>
@@ -26,7 +26,7 @@ function page_open(string $title): void { ?>
 
 function page_close(): void { ?>
 <div class="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=1"></script>
+<script src="/assets/app.js?v=2"></script>
 </body>
 </html>
 <?php }
@@ -36,7 +36,7 @@ function admin_header(string $active): void {
              'giving' => ['Giving', '/admin/giving.php'], 'reports' => ['Reports', '/admin/reports.php'], 'settings' => ['Settings', '/admin/settings.php']]; ?>
 <header class="top">
   <div class="topin">
-    <?= logo(190, false, '/admin/') ?>
+    <?= logo(230, false, '/admin/') ?>
     <form class="search" role="search" action="/admin/people.php">
       <label class="sr" for="q">Find</label><span style="font-size:15px;font-weight:600">Find</span>
       <input id="q" name="q" type="search" placeholder="A trip, a person, a donor">
@@ -57,7 +57,7 @@ function member_header(string $active): void {
              'fund' => ['Fundraising', '/trip/fundraising.php'], 'messages' => ['Messages', '/trip/messages.php']]; ?>
 <header class="top">
   <div class="topin m">
-    <?= logo(180, false, '/trip/') ?>
+    <?= logo(220, false, '/trip/') ?>
     <nav class="seg sm" aria-label="Trip sections">
     <?php foreach ($tabs as $k => [$label, $href]): ?>
       <a class="tab<?= $k === $active ? ' on' : '' ?>" href="<?= $href ?>"<?= $k === $active ? ' aria-current="page"' : '' ?>><?= $label ?></a>

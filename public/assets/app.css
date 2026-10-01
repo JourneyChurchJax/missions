@@ -1,5 +1,5 @@
 /* Journey Missions — app styles. Journey Church design system, October 2026: cream, ink, one ember; rounded, soft shadows. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:ital,wght@0,700;0,800;1,700&family=Montserrat:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:ital,wght@0,700;0,800;1,700&family=Montserrat:wght@700&display=swap');
 
 :root{
   --ember:#ff3a3a; --ember-hover:#e62d2d; --ember-small:#9a1818;
@@ -24,9 +24,9 @@ img{display:block}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 /* Logo: Journey Church lockup with MISSIONS spread under the wordmark */
-.jm-logo{position:relative;width:var(--w,200px);height:calc(var(--w,200px)*.1827);flex-shrink:0;text-decoration:none}
+.jm-logo{position:relative;width:var(--w,200px);height:calc(var(--w,200px)*.19);flex-shrink:0;text-decoration:none}
 .jm-logo img{width:100%;height:auto}
-.jm-logo .under{position:absolute;left:20.21%;width:79.79%;top:calc(var(--w,200px)*.1463);display:flex;justify-content:space-between;font-family:Montserrat,sans-serif;font-weight:400;line-height:1;font-size:calc(var(--w,200px)*.0367);color:var(--ember-small)}
+.jm-logo .under{position:absolute;left:20.21%;width:79.79%;top:calc(var(--w,200px)*.132);display:flex;justify-content:space-between;font-family:Montserrat,sans-serif;font-weight:700;line-height:1;font-size:calc(var(--w,200px)*.05);color:var(--ember-small)}
 .jm-logo.on-dark .under{color:var(--cream)}
 
 /* Header */
@@ -47,11 +47,14 @@ img{display:block}
 @media (max-width:980px){.search{display:none}.topin{grid-template-columns:1fr auto}.topin.m{grid-template-columns:1fr;height:auto;padding:12px 20px;gap:10px}.topin.m .right{display:none}}
 
 /* Page */
-.main{max-width:1320px;margin:0 auto;padding:40px 40px 96px;display:flex;flex-direction:column;gap:32px}
-.main.m{max-width:1240px;padding-top:36px}
+.main{max-width:1320px;margin:0 auto;padding:28px 40px 96px;display:flex;flex-direction:column;gap:28px}
+.main.m{max-width:1240px;padding-top:28px}
 @media (max-width:700px){.main{padding:24px 16px 64px}.topin,.navrow{padding-left:16px;padding-right:16px}}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
-.head h1{margin:0;font-size:clamp(2.5rem,5vw,3.5rem)}
+.head h1{margin:0;font-size:clamp(1.875rem,3vw,2.375rem)}
+.bar-head{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.bar-head h1{margin:0;font-family:'Inter Tight',Inter,sans-serif;font-weight:800;letter-spacing:-.03em;font-size:28px;line-height:1.1}
+.bar-head .btn-primary{height:44px;padding:0 22px}
 .head .sub{display:flex;flex-direction:column;gap:6px}
 .center{display:flex;justify-content:center}
 
@@ -97,7 +100,7 @@ a.cell:hover{background:var(--tint)}
 .bar{height:6px;border-radius:var(--r-pill);background:var(--sand);overflow:hidden}
 .bar>span{display:block;height:100%;border-radius:var(--r-pill);background:var(--ink)}
 .bar.on-dark{background:rgba(247,244,240,.16)}.bar.on-dark>span{background:var(--cream)}
-.hero{position:relative;overflow:hidden;border-radius:var(--r-xl);background:var(--ink);color:var(--cream);padding:32px 36px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--sh-md)}
+.hero{position:relative;overflow:hidden;border-radius:var(--r-xl);background:var(--ink);color:var(--cream);padding:24px 32px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--sh-md)}
 .ghost{position:absolute;font-family:'Inter Tight',Inter,sans-serif;font-weight:800;letter-spacing:-.05em;line-height:.8;color:rgba(247,244,240,.10);white-space:nowrap;pointer-events:none;user-select:none}
 
 /* Grids */
@@ -115,12 +118,12 @@ a.cell:hover{background:var(--tint)}
 
 /* Trip tiles (listing style) */
 .trip{text-decoration:none;display:flex;flex-direction:column;gap:14px}
-.trip .media{position:relative;overflow:hidden;aspect-ratio:4/3;border-radius:var(--r-lg);background:var(--ink);color:var(--cream);padding:18px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--sh-md);transition:box-shadow .25s var(--curve),transform .25s var(--curve)}
+.trip .media{position:relative;overflow:hidden;aspect-ratio:16/9;border-radius:var(--r-lg);background:var(--ink);color:var(--cream);padding:18px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--sh-md);transition:box-shadow .25s var(--curve),transform .25s var(--curve)}
 .trip:hover .media{box-shadow:var(--sh-lg);transform:translateY(-2px)}
-.trip .media .ghost{left:-10px;bottom:-30px;font-size:170px}
+.trip .media .ghost{left:-8px;bottom:-22px;font-size:120px}
 .trip .badge{position:relative;align-self:flex-start;padding:6px 12px;border-radius:var(--r-pill);background:rgba(247,244,240,.92);color:var(--ink);font-size:13px;font-weight:600}
 .trip .facts{display:flex;flex-direction:column;gap:6px;padding:0 4px}
-.trip .new{aspect-ratio:4/3;border-radius:var(--r-lg);background:var(--sand);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:20px}
+.trip .new{aspect-ratio:16/9;border-radius:var(--r-lg);background:var(--sand);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:20px}
 
 /* Tables */
 .tbl{overflow-x:auto}
@@ -145,7 +148,7 @@ tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--tint)}
 .side.on{background:var(--ink);color:var(--cream);font-weight:600;box-shadow:none}
 
 /* Member bits */
-.gallery{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:190px 190px;gap:8px;border-radius:var(--r-xl);overflow:hidden}
+.gallery{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:150px 150px;gap:8px;border-radius:var(--r-xl);overflow:hidden}
 .gallery>div{background:var(--sand);display:flex;align-items:flex-end;padding:14px;font-size:13px;color:var(--muted);position:relative;overflow:hidden}
 .gallery>div:first-child{grid-row:span 2;background:var(--ink);color:var(--muted-dark)}
 .gallery>div:nth-child(3),.gallery>div:nth-child(4){background:var(--line)}

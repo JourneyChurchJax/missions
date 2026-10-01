@@ -2,6 +2,8 @@
 // Journey Missions — loaded first by every page.
 declare(strict_types=1);
 
+date_default_timezone_set('America/New_York');
+
 session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']), 'samesite' => 'Lax']);
 session_start();
 
@@ -12,6 +14,10 @@ foreach ([dirname(__DIR__, 2) . '/config.php', dirname(__DIR__) . '/config.php']
     if (is_file($path)) { $config = require $path; break; }
 }
 
+function greeting(): string {
+    $h = (int)date('G');
+    return $h < 12 ? 'Good morning' : ($h < 17 ? 'Good afternoon' : 'Good evening');
+}
 function e(?string $s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function money(float $n, int $dec = 0): string { return '$' . number_format($n, $dec); }
 function pct(float $a, float $b): int { return $b > 0 ? (int)round($a / $b * 100) : 0; }

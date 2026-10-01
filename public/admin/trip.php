@@ -9,12 +9,12 @@ admin_header('trips');
 ?>
 <main class="main" style="padding-top:32px">
   <section class="hero">
-    <span class="ghost" style="right:-30px;bottom:-60px;font-size:240px"><?= e($t['ghost']) ?></span>
+    <span class="ghost" style="right:-20px;bottom:-40px;font-size:170px"><?= e($t['ghost']) ?></span>
     <a href="/admin/" style="position:relative;color:var(--muted-dark);font-size:14px;text-decoration:none">‹ All trips</a>
     <div style="position:relative;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="color:var(--muted-dark);font-size:15px;font-weight:600"><?= e($t['dates']) ?> · <?= $t['days_away'] ?> days away</div>
-        <h1 class="disp" style="margin:0;font-size:64px"><?= e($t['name']) ?></h1>
+        <h1 class="disp" style="margin:0;font-size:44px"><?= e($t['name']) ?></h1>
         <div style="color:rgba(247,244,240,.85)"><?= e($t['city']) ?> · with <?= e($t['partner']) ?> · led by <?= e($t['leader']) ?></div>
       </div>
       <div style="display:flex;gap:12px">

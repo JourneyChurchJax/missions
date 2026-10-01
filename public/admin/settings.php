@@ -17,7 +17,7 @@ $switches = [
 $sections = ['Church profile', 'Admins', 'Leader permissions', 'Online giving', 'Planning Center', 'Fundraising pages', 'Applications', 'Emails', 'Background checks', 'E-signatures', 'Data and exports'];
 ?>
 <main class="main">
-  <h1 class="disp" style="margin:0;font-size:clamp(2.5rem,5vw,3.5rem)">Settings</h1>
+  <h1 class="disp" style="margin:0;font-size:clamp(1.875rem,3vw,2.375rem)">Settings</h1>
   <div class="split nav-rail">
     <nav aria-label="Settings sections" style="display:flex;flex-direction:column;gap:2px;position:sticky;top:140px;align-self:start">
     <?php foreach ($sections as $s): ?><a class="side<?= $s === 'Leader permissions' ? ' on' : '' ?>" href="#"<?= $s === 'Leader permissions' ? ' aria-current="page"' : ' data-say="' . e($s) . ' settings are coming next"' ?>><?= e($s) ?></a><?php endforeach; ?>
