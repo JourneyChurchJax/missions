@@ -117,6 +117,7 @@ function housekeeping(): void {
     if (defined('NO_HOUSEKEEPING') || demo_on()) return;
     try {
         process_outbox(15);
+        data_key();   // make the encryption key now, so staff can back it up before any private details are saved
         $stamp = data_dir() . '/last-daily';
         if (!is_file($stamp) || filemtime($stamp) < time() - 86400) {
             touch($stamp);
