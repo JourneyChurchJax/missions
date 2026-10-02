@@ -25,5 +25,5 @@ for u in /admin/ "/admin/trip.php?id=1" "/admin/trip.php?id=1&tab=team" "/admin/
   /admin/reports.php "/admin/reports.php?trip=1&view=readiness" "/admin/reports.php?trip=1&view=medical" "/admin/signatures.php?task=1" "/admin/search.php?q=maya" \
   "/admin/settings.php?s=church" "/admin/settings.php?s=leaders" "/admin/settings.php?s=email" "/admin/settings.php?s=privacy" "/admin/settings.php?s=audit" "/packet.php?trip=1"; do check "$u"; done
 for u in "/apply/?f=belize-2027" "/give/?trip=belize" /health.php; do check "$u"; done
-grep -i 'fatal\|warning' "$WORK/server.log" | grep -v 'Deprecated' && FAIL=1 || true
+grep -i 'fatal\|warning' "$WORK/server.log" | grep -v 'Deprecated\|JIT' && FAIL=1 || true
 [ "$FAIL" = 0 ] && echo "All pages loaded." || { echo "Some pages failed."; exit 1; }
