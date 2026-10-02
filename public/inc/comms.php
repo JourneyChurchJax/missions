@@ -48,7 +48,7 @@ function deliver(int $id): bool {
     update('outbox', $id, ['attempts' => (int)$m['attempts'] + 1]);
     try {
         if ($m['channel'] === 'email') {
-            $text = $m['body'] . "\n\n—\n" . church_name() . " Missions\n" . site_url('/');
+            $text = $m['body'] . "\n\n-- \n" . church_name() . " Missions\n" . site_url('/');
             $ok = smtp_ready() ? smtp_send($m['to_addr'], (string)$m['subject'], $text) : mail_raw($m['to_addr'], (string)$m['subject'], $text);
         } else {
             $tw = $config['twilio'];

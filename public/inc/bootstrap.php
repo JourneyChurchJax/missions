@@ -1,5 +1,5 @@
 <?php
-// Journey Missions — loaded first by every page.
+// Journey Missions: loaded first by every page.
 declare(strict_types=1);
 
 date_default_timezone_set('America/New_York');

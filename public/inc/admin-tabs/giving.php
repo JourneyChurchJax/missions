@@ -7,7 +7,7 @@ $recent = gifts(['trip' => $id], 12);
 ?>
 <section class="g4">
   <div class="tile dark" style="padding:24px"><div class="k">Raised</div><div class="disp" style="font-size:48px"><?= money(trip_raised($id)) ?></div><div style="color:rgba(247,244,240,.85)">of <?= money(trip_goal($t)) ?> · <?= pct(trip_raised($id), trip_goal($t)) ?>%</div></div>
-  <div class="tile"><div class="k">Next milestone</div><div class="disp v"><?= $next ? ($next['kind'] === 'percent' ? (int)$next['amount'] . '%' : money((float)$next['amount'])) : '—' ?></div><div class="muted small"><?= $next ? 'by ' . fdate($next['due_date'], 'M j') : 'No upcoming goals' ?></div></div>
+  <div class="tile"><div class="k">Next milestone</div><div class="disp v"><?= $next ? ($next['kind'] === 'percent' ? (int)$next['amount'] . '%' : money((float)$next['amount'])) : 'None' ?></div><div class="muted small"><?= $next ? 'by ' . fdate($next['due_date'], 'M j') : 'No upcoming goals' ?></div></div>
   <div class="tile"><div class="k">Behind</div><div class="disp v"><?php $behind = 0; if ($next) foreach ($trav as $m) { $need = $next['kind'] === 'percent' ? member_goal($t, $m) * $next['amount'] / 100 : (float)$next['amount']; if ((float)$m['raised'] < $need) $behind++; } echo $behind; ?></div><div class="muted small">for the next milestone</div></div>
   <div class="tile"><div class="k">Team gifts</div><div class="disp v"><?= money($team_total) ?></div><div class="muted small">not tied to one person</div></div>
 </section>

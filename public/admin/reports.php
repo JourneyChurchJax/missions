@@ -71,7 +71,7 @@ admin_header('reports');
       <div class="bar-head"><div><a class="muted small" href="/admin/reports.php?trip=<?= $tid ?>" style="text-decoration:none">‹ All reports</a><h1><?= e($title) ?> · <?= e($t['name']) ?></h1></div>
         <div style="display:flex;gap:10px"><a class="btn" href="/admin/reports.php?trip=<?= $tid ?>&view=<?= e($view) ?>&csv=1">Download spreadsheet</a><button class="btn btn-dark" type="button" data-print>Print</button></div></div>
       <div class="group tbl"><table><thead><tr><?php foreach ($head as $h): ?><th><?= e($h) ?></th><?php endforeach; ?></tr></thead>
-        <tbody><?php foreach ($rows as $r): ?><tr><?php foreach ($r as $c): ?><td><?= (string)$c !== '' ? e((string)$c) : '<span class="muted">—</span>' ?></td><?php endforeach; ?></tr><?php endforeach; ?>
+        <tbody><?php foreach ($rows as $r): ?><tr><?php foreach ($r as $c): ?><td><?= (string)$c !== '' ? e((string)$c) : '' ?></td><?php endforeach; ?></tr><?php endforeach; ?>
         <?php if (!$rows): ?><tr><td colspan="<?= count($head) ?>" class="empty">Nothing to show yet.</td></tr><?php endif; ?></tbody></table></div>
       <?php if (in_array($view, ['roster', 'medical', 'emergency'], true)): ?><div class="muted small">Private information. Print only what the trip needs and keep it with the leader.</div><?php endif; ?>
     </section>

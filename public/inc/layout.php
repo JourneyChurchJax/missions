@@ -120,7 +120,7 @@ function member_header(string $active): void {
 function date_box(string $mon, string $day): string {
     return '<div class="date"><small>' . e($mon) . '</small><b>' . e($day) . '</b></div>';
 }
-function date_box_for(?string $d): string { return $d ? date_box(strtoupper(date('M', strtotime($d))), date('j', strtotime($d))) : date_box('—', '—'); }
+function date_box_for(?string $d): string { return $d ? date_box(strtoupper(date('M', strtotime($d))), date('j', strtotime($d))) : date_box('DATE', 'TBD'); }
 function bar(int $pct, bool $dark = false, string $label = 'Progress'): string {
     return '<div class="bar' . ($dark ? ' on-dark' : '') . '" role="progressbar" aria-label="' . e($label) . '" aria-valuenow="' . max(0, min(100, $pct)) . '" aria-valuemin="0" aria-valuemax="100"><span style="width:' . max(0, min(100, $pct)) . '%"></span></div>';
 }

@@ -272,7 +272,7 @@ $rels = ['', 'Parent/Guardian', 'Spouse', 'Sibling', 'Friend', 'Other'];
       <dt>Birth date</dt><dd><?= $p['birth_date'] ? fdate($p['birth_date'], 'F j, Y') : '<span class="muted">Missing</span>' ?></dd>
       <dt>Passport</dt><dd><?= $p['passport_expires'] ? 'Expires ' . fdate($p['passport_expires'], 'F j, Y') : '<span class="muted">Not added yet</span>' ?></dd>
       <dt>Emergency contact</dt><dd><?= $p['ec1_name'] ? e($p['ec1_name'] . ' · ' . $p['ec1_phone']) : '<span class="muted">Missing</span>' ?></dd>
-      <?php if (isset($steps['trip'])): ?><dt>Trip</dt><dd><?= e(implode(', ', array_map(fn($c) => trip((int)$c)['name'] ?? '', array_filter([$app['choice1'], $app['choice2'], $app['choice3']]))) ?: '—') ?></dd><?php endif; ?>
+      <?php if (isset($steps['trip'])): ?><dt>Trip</dt><dd><?= e(implode(', ', array_map(fn($c) => trip((int)$c)['name'] ?? '', array_filter([$app['choice1'], $app['choice2'], $app['choice3']]))) ?: 'None chosen') ?></dd><?php endif; ?>
       <?php if ($refs): ?><dt>References</dt><dd><?= e(implode(', ', array_filter(array_column($refs, 'name')))) ?: '<span class="muted">Missing</span>' ?></dd><?php endif; ?>
     </dl>
     <?php if ($minor): ?>

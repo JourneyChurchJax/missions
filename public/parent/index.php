@@ -34,7 +34,7 @@ $block = function (string $k, string $label) use ($gd) { $ls = clean_lines($gd[$
   <section class="g3">
     <div class="tile"><div class="k">Checklist</div><div class="disp v"><?= $done ?>/<?= count($tasks) ?></div><div class="muted small"><?= $done >= count($tasks) ? 'All done' : e($name) . ' has ' . (count($tasks) - $done) . ' left' ?></div></div>
     <div class="tile"><div class="k">Fundraising</div><div class="disp v"><?= pct((float)(member_of($tid, (int)$kid['id'])['raised'] ?? 0), member_goal($t, member_of($tid, (int)$kid['id']))) ?>%</div><div class="muted small">of <?= money(member_goal($t, member_of($tid, (int)$kid['id']))) ?></div></div>
-    <div class="tile"><div class="k">Next meeting</div><div class="disp v" style="font-size:22px"><?= $meet ? fdate($meet[0]['starts_at'], 'M j') : '—' ?></div><div class="muted small"><?= $meet ? e($meet[0]['title']) . ' · ' . fdate($meet[0]['starts_at'], 'g:i A') : 'None scheduled' ?></div></div>
+    <div class="tile"><div class="k">Next meeting</div><div class="disp v" style="font-size:22px"><?= $meet ? fdate($meet[0]['starts_at'], 'M j') : 'None yet' ?></div><div class="muted small"><?= $meet ? e($meet[0]['title']) . ' · ' . fdate($meet[0]['starts_at'], 'g:i A') : 'None scheduled' ?></div></div>
   </section>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-primary" href="/packet.php?p=<?= e($g['token']) ?>" target="_blank">Trip packet (print or PDF)</a><a class="btn" href="<?= e(cal_url('t', cal_token_for_trip($tid))) ?>">Add to my calendar</a></div>
 

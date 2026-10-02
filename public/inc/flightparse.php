@@ -42,7 +42,7 @@ function parse_flights(string $text, array $trip): array {
         $find = function (string $t) use ($stop) { preg_match_all('/\(([A-Z]{3})\)/', $t, $p); if (count($p[1]) >= 2) return $p[1];
             preg_match_all('/\b([A-Z]{3})\b/', $t, $q); return array_values(array_unique(array_filter($q[1], fn($c) => !in_array($c, $stop, true)))); };
         $ports = $find($after); if (count($ports) < 2) $ports = $find($win);
-        // 6:00 AM, 6:00am, 6:00 a.m., 6:00p — but not the "A" in "12:30 Arrive"
+        // 6:00 AM, 6:00am, 6:00 a.m., 6:00p, but not the "A" in "12:30 Arrive"
         preg_match_all('/\b(\d{1,2}):(\d{2})(?:\s*([AaPp])(?:\.?\s?[Mm]\.?)?(?![A-Za-z]))?/', $after, $tm, PREG_SET_ORDER);
         if (!$tm) preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b()/', $after, $tm, PREG_SET_ORDER);
         if (!$tm) preg_match_all('/(?<![\d\/-])\b([01]\d|2[0-3])([0-5]\d)\b(?![\/-])()/', $after, $tm, PREG_SET_ORDER);

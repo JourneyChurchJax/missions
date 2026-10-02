@@ -30,8 +30,8 @@ admin_header('people');
       <?php foreach ($rows as $p): ?>
         <tr class="clickable" onclick="location.href='/admin/person.php?id=<?= (int)$p['id'] ?>'">
           <td><a class="who" href="/admin/person.php?id=<?= (int)$p['id'] ?>" style="text-decoration:none"><span class="av"><?= initials(full_name($p)) ?></span><?= e(full_name($p)) ?></a></td>
-          <td><?= e($p['trip_names'] ?: '—') ?></td>
-          <td class="muted"><?= e($p['email'] ?: '—') ?></td>
+          <td><?= e($p['trip_names'] ?: 'No trip') ?></td>
+          <td class="muted"><?= e($p['email'] ?: 'No email') ?></td>
           <td><span class="pill<?= $p['passport_expires'] ? ' pill-ok' : '' ?>"><?= $p['passport_expires'] ? 'Valid to ' . fdate($p['passport_expires'], 'Y') : 'Missing' ?></span></td>
           <td><span class="pill<?= $p['ec1_name'] ? ' pill-ok' : '' ?>"><?= $p['ec1_name'] ? 'On file' : 'Missing' ?></span></td>
           <td class="muted"><?= e($p['tags'] ?: '') ?></td>
