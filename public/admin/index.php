@@ -1,7 +1,10 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$which = in_array($_GET['show'] ?? '', ['past', 'cancelled'], true) ? $_GET['show'] : 'upcoming';
+require_preview();
+// Trip leaders go straight to the trip they lead; everything else here is for staff
+if (!is_staff_session() && ($lt = led_trips())) { header('Location: /admin/trip.php?id=' . $lt[0]['id']); exit; }
+require_staff();
+$which = in_array(g('show'), ['past', 'cancelled'], true) ? g('show') : 'upcoming';
 $list = trips($which);
 $upcoming = trips('upcoming');
 $total_travelers = 0; $total_ready = 0; $done = 0; $total = 0; $raised = 0; $alerts = [];
@@ -21,10 +24,10 @@ $activity = all("SELECT a.*, t.name AS trip FROM activity a LEFT JOIN trips t ON
 page_open('Trips');
 admin_header('trips');
 ?>
-<main class="main">
+<main class="main" id="main">
   <div class="bar-head">
     <div>
-      <h1><?= greeting() ?>, Adam</h1>
+      <h1><?= greeting() ?><?= !empty($_SESSION['auth']['name']) ? ', ' . e(strtok($_SESSION['auth']['name'], ' ')) : '' ?></h1>
       <div class="muted small"><?= date('l, F j') ?> · <?= count($upcoming) ?> trips coming up · <?= $total_travelers ?> people traveling</div>
     </div>
     <a class="btn btn-primary" href="/admin/trip-edit.php">New trip</a>
@@ -36,9 +39,9 @@ admin_header('trips');
   </div>
   <?php endif; ?>
 
-  <div class="seg sm" data-choice aria-label="Show" style="align-self:flex-start">
+  <nav class="seg sm" aria-label="Show" style="align-self:flex-start">
     <a class="tab<?= $which === 'upcoming' ? ' on' : '' ?>" href="/admin/">Upcoming</a><a class="tab<?= $which === 'past' ? ' on' : '' ?>" href="/admin/?show=past">Past</a><a class="tab<?= $which === 'cancelled' ? ' on' : '' ?>" href="/admin/?show=cancelled">Cancelled or postponed</a>
-  </div>
+  </nav>
 
   <section class="g3">
   <?php foreach ($list as $t): $id = (int)$t['id']; $n = count(travelers($id)); $ready = trip_ready_count($id); $g = trip_goal($t); ?>
@@ -71,11 +74,12 @@ admin_header('trips');
         <?php foreach ($activity as $x): ?>
           <div class="cell"><div class="grow"><strong><?= e($x['who']) ?></strong> <span class="muted"><?= e(lcfirst($x['what'])) ?></span><div class="muted small"><?= e($x['trip'] ?? '') ?> · <?= fdate($x['created_at'], 'M j, g:i A') ?></div></div></div>
         <?php endforeach; ?>
+        <?= $activity ? '' : empty_state('Nothing yet. Changes your team makes show up here.') ?>
         </div>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:20px">
-      <div class="tile dark" style="padding:28px;gap:8px"><div class="k">Raised this season</div><div class="disp" style="font-size:64px"><?= money($raised) ?></div><div style="color:rgba(247,244,240,.85)">Gifts and traveler payments for upcoming trips</div></div>
+      <div class="tile dark" style="padding:28px;gap:8px"><div class="k">Raised for upcoming trips</div><div class="disp" style="font-size:64px"><?= money($raised) ?></div><div style="color:rgba(247,244,240,.85)">Gifts and traveler payments for upcoming trips</div></div>
       <div class="g2">
         <div class="tile"><div class="k">Travelers ready</div><div class="disp v"><?= $total_ready ?> of <?= $total_travelers ?></div><div class="muted small">Every step done</div></div>
         <div class="tile"><div class="k">Tasks done</div><div class="disp v"><?= pct($done, max(1, $total)) ?>%</div><div class="muted small"><?= $done ?> of <?= $total ?></div></div>

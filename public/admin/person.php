@@ -1,19 +1,26 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$p = isset($_GET['id']) ? person((int)$_GET['id']) : [];
+require_preview();
+$p = gi('id') ? person(gi('id')) : [];
+if (gi('id') && !$p) { header('Location: /admin/people.php'); exit; }
 $trips_of = $p ? all('SELECT t.*, m.role, m.id AS member_id FROM trips t JOIN members m ON m.trip_id = t.id WHERE m.person_id = ? ORDER BY t.start_date DESC', [$p['id']]) : [];
-$uploads = $p ? all('SELECT * FROM files WHERE person_id = ? ORDER BY id DESC', [$p['id']]) : [];
-$staff = true;
-$back = '/admin/person.php?id=' . (int)($p['id'] ?? 0);
+// Staff see everyone. Trip leaders see people on their trips, if their permissions allow.
+$staff = is_staff_session();
+$myTrips = array_values(array_filter(array_map('intval', array_column($trips_of, 'id')), fn($t) => can('team', $t)));
+if (!$staff && (!$p || !$myTrips)) { header('Location: /trip/'); exit; }
+if ($staff) $_SESSION['view'] = 'staff';
+$show_medical = $staff || (bool)array_filter($myTrips, fn($t) => can('medical', $t));
+$uploads = $p ? all("SELECT * FROM files WHERE person_id = ? AND kind <> 'pagephoto' ORDER BY id DESC", [$p['id']]) : [];
+$back = $p ? '/admin/person.php?id=' . (int)$p['id'] : '';
+if ($p) audit('person_view', 'people', (int)$p['id']);
 page_open($p ? full_name($p) : 'Add a person');
 admin_header('people');
 ?>
 <main class="main" style="max-width:1100px">
   <div class="bar-head">
     <div style="display:flex;gap:14px;align-items:center">
-      <span class="av dark lg"><?= $p ? initials(full_name($p)) : '+' ?></span>
-      <div><a class="muted small" href="<?= isset($_GET['trip']) ? '/admin/trip.php?id=' . (int)$_GET['trip'] . '&tab=team' : '/admin/people.php' ?>" style="text-decoration:none">‹ Back</a><h1><?= $p ? e(full_name($p)) : 'Add a person' ?></h1>
+      <span class="av dark lg" aria-hidden="true"><?= $p ? e(initials(full_name($p))) : '+' ?></span>
+      <div><a class="muted small back-link" href="<?= gi('trip') ? '/admin/trip.php?id=' . gi('trip') . '&tab=team' : ($staff ? '/admin/people.php' : '/admin/') ?>">‹ Back</a><h1><?= $p ? e(full_name($p)) : 'Add a person' ?></h1>
       <?php if ($p): ?><div class="muted small"><?= e($p['email'] ?: 'No email') ?><?= $p['phone'] ? ' · ' . e($p['phone']) : '' ?><?= $p['verified_at'] ? ' · confirmed their info ' . fdate($p['verified_at'], 'M j') : '' ?></div><?php endif; ?></div>
     </div>
   </div>
@@ -26,7 +33,7 @@ admin_header('people');
         <?php endforeach; ?>
         <?= $trips_of ? '' : empty_state('Not on a trip yet') ?>
       </div></section>
-      <?php if ($p): $bgs = all('SELECT * FROM background_checks WHERE person_id = ? ORDER BY id DESC', [$p['id']]); $bg = $bgs[0] ?? null; $nsig = (int)val('SELECT COUNT(*) FROM signatures WHERE person_id = ?', [$p['id']]); ?>
+      <?php if ($p && $staff): $bgs = all('SELECT * FROM background_checks WHERE person_id = ? ORDER BY id DESC', [$p['id']]); $bg = $bgs[0] ?? null; $nsig = (int)val('SELECT COUNT(*) FROM signatures WHERE person_id = ?', [$p['id']]); ?>
       <section><div class="gh"><span>Background check</span><span class="pill<?= bg_state($bg) === 'ok' ? ' pill-ok' : '' ?>"><?= e(BG_STATE_LABEL[bg_state($bg)]) ?></span></div><div class="group">
         <?php foreach ($bgs as $b): ?><div class="cell"><div class="grow"><strong><?= e(BG_STATUS[$b['status']] ?? $b['status']) ?><?= $b['provider'] ? ' · ' . e($b['provider']) : '' ?></strong><div class="muted small"><?= $b['completed_at'] ? 'Cleared ' . fdate($b['completed_at'], 'M j, Y') : 'Requested ' . fdate($b['requested_at'], 'M j, Y') ?><?= $b['expires_on'] ? ' · expires ' . fdate($b['expires_on'], 'M j, Y') : '' ?><?= $b['pco_id'] ? ' · from Planning Center' : '' ?></div></div></div><?php endforeach; ?>
         <?= $bgs ? '' : empty_state('None on file') ?>
@@ -56,15 +63,16 @@ admin_header('people');
       <?php endif; ?></section>
       <section><div class="gh">Signed documents</div><div class="group"><a class="cell" href="/admin/signatures.php?person=<?= (int)$p['id'] ?>"><span class="grow"><?= $nsig ?> signed</span><span class="chev">›</span></a></div></section>
       <?php endif; ?>
-      <?php if ($p): $gs = guardians((int)$p['id']); ?>
+      <?php if ($p && $staff): $gs = guardians((int)$p['id']); ?>
       <section><div class="gh"><span>Parents and guardians</span><?= $p['birth_date'] && is_minor($p, date('Y-m-d')) ? '<span class="muted small">Under 18</span>' : '' ?></div><div class="group">
         <?php foreach ($gs as $g): ?>
           <div class="cell" style="flex-wrap:wrap"><div class="grow"><strong><?= e($g['name']) ?></strong><div class="muted small"><?= e($g['rel']) ?><?= $g['email'] ? ' · ' . e($g['email']) : '' ?><?= $g['phone'] ? ' · ' . e($g['phone']) : '' ?></div></div>
             <div style="display:flex;gap:10px;width:100%;justify-content:flex-end;font-size:14px">
-              <a href="#" data-copy="<?= e(parent_url($g)) ?>">Copy their link</a>
+              <button type="button" class="link-btn" data-copy="<?= e(parent_url($g)) ?>">Copy link</button>
               <form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="guardian_send"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn">Email it</button></form>
               <a href="/parent/?t=<?= e($g['token']) ?>" target="_blank">Preview</a>
-              <form method="post" action="/action.php" class="inline" onsubmit="return confirm('Remove this parent? Their link stops working.')"><?= csrf() ?><input type="hidden" name="action" value="guardian_delete"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn danger">Remove</button></form>
+              <form method="post" action="/action.php" class="inline" data-confirm="Make a new private link? The old one stops working."><?= csrf() ?><input type="hidden" name="action" value="guardian_rotate"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn">New link</button></form>
+              <form method="post" action="/action.php" class="inline" data-confirm="Remove this parent? Their link stops working."><?= csrf() ?><input type="hidden" name="action" value="guardian_delete"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn danger">Remove</button></form>
             </div></div>
         <?php endforeach; ?>
         <?= $gs ? '' : empty_state('No parents added') ?>
@@ -73,10 +81,19 @@ admin_header('people');
         <form class="form" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="guardian_save"><input type="hidden" name="person_id" value="<?= (int)$p['id'] ?>">
           <label class="lab">Name<input type="text" name="name" value="<?= !$gs && $p['ec1_rel'] === 'Parent/Guardian' ? e($p['ec1_name']) : '' ?>" required></label>
           <div class="r2"><label class="lab">Email<input type="email" name="email" value="<?= !$gs && $p['ec1_rel'] === 'Parent/Guardian' ? e($p['ec1_email']) : '' ?>"></label><label class="lab">Phone<input type="tel" name="phone" value="<?= !$gs && $p['ec1_rel'] === 'Parent/Guardian' ? e($p['ec1_phone']) : '' ?>"></label></div>
-          <input type="hidden" name="rel" value="Parent"><button class="btn btn-dark" type="submit">Add parent</button>
+          <label class="chk"><input type="checkbox" name="sms_ok" value="1"> OK to text this parent</label><input type="hidden" name="rel" value="Parent"><button class="btn btn-dark" type="submit">Add parent</button>
           <div class="muted small">They get a private page with the schedule, flights, packing list, contacts and updates. No password needed.</div>
         </form></div></details>
       </section>
+      <?php endif; ?>
+      <?php if ($p && $staff): ?>
+      <section><h2 class="gh">Privacy</h2><div class="group">
+        <form class="cell" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="person_export"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><span class="grow">Download everything we have on them</span><button class="link-btn" type="submit">Download</button></form>
+        <details class="cell"><summary class="link-btn danger">Delete this person</summary>
+          <form class="form" method="post" action="/action.php" style="padding-top:10px"><?= csrf() ?><input type="hidden" name="action" value="person_delete"><input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+            <div class="muted small">This erases their personal information. If they have gifts, payments or signatures, those stay as anonymous records. This can't be undone.</div>
+            <label class="lab">Type DELETE to confirm<input type="text" name="confirm" autocomplete="off" required></label><button class="btn btn-danger" type="submit">Delete</button></form></details>
+      </div></section>
       <?php endif; ?>
       <section><div class="gh">Their uploads</div><div class="group">
         <?php foreach ($uploads as $f): ?><a class="cell" href="/file.php?id=<?= (int)$f['id'] ?>"><div class="grow"><strong><?= e($f['title']) ?></strong><div class="muted small"><?= fdate($f['created_at'], 'M j, Y') ?></div></div><span class="chev">›</span></a><?php endforeach; ?>

@@ -1,10 +1,16 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$trips_all = trips('upcoming');
-$tid = (int)($_GET['trip'] ?? ($trips_all[0]['id'] ?? 0));
+require_preview();
+$trips_all = is_staff_session() ? trips('upcoming') : led_trips();
+if (!is_staff_session() && !$trips_all) { header('Location: /trip/'); exit; }
+$tid = gi('trip') ?: (int)($trips_all[0]['id'] ?? 0);
+if (!is_staff_session() && !in_array($tid, array_map('intval', array_column($trips_all, 'id')), true)) $tid = (int)$trips_all[0]['id'];
 $t = trip($tid);
-$view = $_GET['view'] ?? '';
+$view = g('view');
+// Which permission each report needs
+const REPORT_AREA = ['readiness' => 'tasks', 'roster' => 'travel', 'emergency' => 'team', 'medical' => 'medical', 'rooming' => 'team', 'shirts' => 'team',
+    'signatures' => 'tasks', 'background' => 'staff', 'fundraising' => 'giving', 'budget' => 'budget', 'gifts' => 'giving', 'expenses' => 'budget'];
+$may = fn(string $v) => is_staff_session() || (($a = REPORT_AREA[$v] ?? 'staff') !== 'staff' && can($a, $tid));
 $reports = [
   'Before the trip' => [
     'readiness' => ['Team readiness', 'Who is ready to go and what each person still owes'],
@@ -45,16 +51,16 @@ function report_rows(string $view, array $t): array {
     return [[], []];
 }
 
-if ($t && $view && isset($_GET['csv'])) {
+if ($view && !$may($view)) { http_response_code(403); $view = ''; flash("You don't have access to that report.", 'error'); }
+if ($t && $view) audit(g('csv') !== '' ? 'report_download' : 'report_view', 'reports', $tid, $tid, $view);
+if ($t && $view && g('csv') !== '') {
     [$head, $rows] = report_rows($view, $t);
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="' . preg_replace('/[^a-z0-9]+/i', '-', $t['name'] . '-' . $view) . '.csv"');
-    $out = fopen('php://output', 'w'); fputcsv($out, $head, ',', '"', '\\'); foreach ($rows as $r) fputcsv($out, $r, ',', '"', '\\'); exit;
+    $out = csv_start($t['name'] . '-' . $view . '.csv'); csv_out($out, $head); foreach ($rows as $r) csv_out($out, $r); exit;
 }
 page_open('Reports');
 admin_header('reports');
 ?>
-<main class="main">
+<main class="main" id="main">
   <div class="head">
     <div class="sub"><h1 class="disp">Reports</h1><div class="muted">Everything you need before a trip, a board meeting or tax season</div></div>
     <nav class="seg sm" aria-label="Trip"><?php foreach ($trips_all as $x): ?><a class="tab<?= (int)$x['id'] === $tid ? ' on' : '' ?>" href="/admin/reports.php?trip=<?= (int)$x['id'] ?><?= $view ? '&view=' . e($view) : '' ?>"><?= e($x['name']) ?></a><?php endforeach; ?></nav>
@@ -63,21 +69,21 @@ admin_header('reports');
   <?php if ($t && $view): [$head, $rows] = report_rows($view, $t); $title = ''; foreach ($reports as $g) if (isset($g[$view])) $title = $g[$view][0]; ?>
     <section style="display:flex;flex-direction:column;gap:12px">
       <div class="bar-head"><div><a class="muted small" href="/admin/reports.php?trip=<?= $tid ?>" style="text-decoration:none">‹ All reports</a><h1><?= e($title) ?> · <?= e($t['name']) ?></h1></div>
-        <div style="display:flex;gap:10px"><a class="btn" href="/admin/reports.php?trip=<?= $tid ?>&view=<?= e($view) ?>&csv=1">Download CSV</a><button class="btn btn-dark" type="button" onclick="window.print()">Print</button></div></div>
+        <div style="display:flex;gap:10px"><a class="btn" href="/admin/reports.php?trip=<?= $tid ?>&view=<?= e($view) ?>&csv=1">Download spreadsheet</a><button class="btn btn-dark" type="button" data-print>Print</button></div></div>
       <div class="group tbl"><table><thead><tr><?php foreach ($head as $h): ?><th><?= e($h) ?></th><?php endforeach; ?></tr></thead>
-        <tbody><?php foreach ($rows as $r): ?><tr><?php foreach ($r as $c): ?><td><?= e((string)$c) ?: '<span class="muted">—</span>' ?></td><?php endforeach; ?></tr><?php endforeach; ?>
+        <tbody><?php foreach ($rows as $r): ?><tr><?php foreach ($r as $c): ?><td><?= (string)$c !== '' ? e((string)$c) : '<span class="muted">—</span>' ?></td><?php endforeach; ?></tr><?php endforeach; ?>
         <?php if (!$rows): ?><tr><td colspan="<?= count($head) ?>" class="empty">Nothing to show yet.</td></tr><?php endif; ?></tbody></table></div>
       <?php if (in_array($view, ['roster', 'medical', 'emergency'], true)): ?><div class="muted small">Private information. Print only what the trip needs and keep it with the leader.</div><?php endif; ?>
     </section>
   <?php else: ?>
     <?php foreach ($reports as $group => $items): ?>
     <section>
-      <div class="gh"><?= e($group) ?></div>
-      <div class="g3" style="gap:20px">
-      <?php foreach ($items as $k => [$name, $desc]): ?>
-        <a class="tile" href="/admin/reports.php?trip=<?= $tid ?>&view=<?= $k ?>" style="gap:8px;text-decoration:none">
-          <strong style="font-size:18px"><?= e($name) ?></strong><span class="muted"><?= e($desc) ?></span>
-          <span style="display:flex;gap:8px;margin-top:auto;padding-top:8px"><span class="pill">View</span><span class="pill">Print</span><span class="pill">CSV</span></span>
+      <h2 class="gh"><?= e($group) ?></h2>
+      <div class="g3">
+      <?php foreach ($items as $k => [$name, $desc]): if (!$may($k)) continue; ?>
+        <a class="tile link-tile" href="/admin/reports.php?trip=<?= $tid ?>&view=<?= $k ?>">
+          <h3 class="card-title"><?= e($name) ?></h3><span class="muted"><?= e($desc) ?></span>
+          <span class="muted small strong" style="margin-top:auto">Open ›</span>
         </a>
       <?php endforeach; ?>
       </div>

@@ -18,5 +18,5 @@ $leader = one("SELECT p.* FROM people p JOIN members m ON m.person_id = p.id WHE
 $my_tasks = tasks_for($tid, $me_id);
 $open_tasks = array_values(array_filter($my_tasks, fn($k) => !$k['done_at']));
 $next_meeting = one('SELECT * FROM meetings WHERE trip_id = ? AND starts_at >= ? ORDER BY starts_at LIMIT 1', [$tid, date('Y-m-d')]);
-$must_read = all("SELECT f.*, a.acked_at FROM files f LEFT JOIN file_acks a ON a.file_id = f.id AND a.person_id = ? WHERE f.trip_id = ? AND f.must_ack = 1 AND f.visible = 1 AND f.person_id IS NULL", [$me_id, $tid]);
+$must_read = all("SELECT f.*, a.acked_at FROM files f LEFT JOIN file_acks a ON a.file_id = f.id AND a.person_id = ? WHERE f.trip_id = ? AND f.must_ack = 1 AND f.visible = 1 AND f.person_id IS NULL AND (f.path IS NOT NULL OR (f.url IS NOT NULL AND f.url <> ''))", [$me_id, $tid]);
 $unread = array_values(array_filter($must_read, fn($f) => !$f['acked_at']));

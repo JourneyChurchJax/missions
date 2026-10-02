@@ -1,0 +1,9 @@
+{
+  "name": "Journey Missions",
+  "short_name": "Missions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f4f0",
+  "theme_color": "#f7f4f0",
+  "icons": [{ "src": "/assets/logo/mark-ember.png", "sizes": "583x603", "type": "image/png" }]
+}

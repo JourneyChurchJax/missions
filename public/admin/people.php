@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
+require_staff();
 $q = trim((string)($_GET['q'] ?? ''));
 $filter = in_array($_GET['f'] ?? '', ['travelers', 'leaders', 'none'], true) ? $_GET['f'] : 'all';
 $rows = all("SELECT p.*, GROUP_CONCAT(t.name, ', ') AS trip_names, MAX(m.role) AS role_any,
@@ -15,7 +15,7 @@ $rows = array_values(array_filter($rows, function ($p) use ($q, $filter) {
 page_open('People');
 admin_header('people');
 ?>
-<main class="main">
+<main class="main" id="main">
   <div class="head">
     <div class="sub"><h1 class="disp">People</h1><div class="muted">Everyone who has applied, traveled or led<?= $q ? ' · results for “' . e($q) . '” · <a href="/admin/people.php">clear</a>' : '' ?></div></div>
     <div style="display:flex;gap:12px"><a class="btn" href="/admin/pco-import.php">Add from Planning Center</a><a class="btn btn-primary" href="/admin/person.php">Add a person</a></div>
@@ -40,7 +40,7 @@ admin_header('people');
       <?php if (!$rows): ?><tr><td colspan="6" class="empty">No one matches.</td></tr><?php endif; ?>
       </tbody>
     </table>
-    <div class="muted small" style="padding:14px 18px;box-shadow:inset 0 1px 0 var(--sand)"><?= count($rows) ?> people · Corey and Thomas are real, the Israel team is sample</div>
+    <div class="muted small" style="padding:14px 18px;box-shadow:inset 0 1px 0 var(--sand)"><?= count($rows) ?> people</div>
   </section>
 </main>
 <?php page_close(); ?>

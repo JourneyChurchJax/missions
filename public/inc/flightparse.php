@@ -8,15 +8,19 @@ const AIRLINE_CODES = ['AA' => 'American Airlines', 'DL' => 'Delta', 'UA' => 'Un
     'TA' => 'TACA', '5U' => 'TAG Airlines', 'VS' => 'Virgin Atlantic', 'EK' => 'Emirates', 'QR' => 'Qatar Airways', 'ET' => 'Ethiopian', 'KQ' => 'Kenya Airways'];
 
 function parse_flights(string $text, array $trip): array {
-    $text = str_replace(["\r", "\t", ' '], ["\n", ' ', ' '], $text);
+    // Airline emails are full of non-breaking and thin spaces; make them ordinary spaces
+    $text = preg_replace('/[\x{00A0}\x{2007}\x{2009}\x{200A}\x{202F}\x{2002}\x{2003}]/u', ' ', str_replace(["\r", "\t"], ["\n", ' '], $text)) ?? $text;
     // "American Airlines Flight 1820" / "Delta 2231" → "AA 1820"
     foreach (AIRLINE_CODES as $code => $name) {
         $short = preg_quote(preg_replace('/ (Airlines|Airways)$/', '', $name), '/');
-        $text = preg_replace('/\b' . $short . '(?: (?:Airlines|Airways|Air Lines))?\s*(?:Flight|Flt\.?|#)?\s*(\d{1,4})\b/i', $code . ' $1', $text);
+        // Case-sensitive "American 1820" style names; a 4-digit number that looks like a year needs the word Flight
+        $text = preg_replace('/\b' . $short . '(?: (?:Airlines|Airways|Air Lines))?\s*(?:Flight|Flt\.?|#)\s*(\d{1,4})\b/i', $code . ' $1', $text);
+        $text = preg_replace('/\b' . $short . '(?: (?:Airlines|Airways|Air Lines))?\s+(?!(?:19|20)\d\d\b)(\d{1,4})\b(?!:)/', $code . ' $1', $text);
     }
     $text = preg_replace('/\b(?:Flight|Flt\.?)\s*#?\s*([A-Z0-9]{2})\s?(\d{1,4})\b/i', '$1 $2', $text);
     $codes = implode('|', array_map(fn($c) => preg_quote($c, '/'), array_keys(AIRLINE_CODES)));
-    preg_match_all('/\b(' . $codes . ')\s?(\d{1,4})\b/', $text, $m, PREG_OFFSET_CAPTURE);
+    // A code followed by a time (ET 11:30) or right after AM/PM is a time zone, not a flight
+    preg_match_all('/(?<![AaPp][Mm] )\b(' . $codes . ')\s?(\d{1,4})\b(?![:.]\d)/', $text, $m, PREG_OFFSET_CAPTURE);
     if (!$m[0]) return [];
     $stop = ['THE', 'AND', 'FOR', 'YOU', 'PNR', 'USD', 'EST', 'EDT', 'CST', 'CDT', 'PST', 'PDT', 'MST', 'MDT', 'UTC', 'GMT', 'NON', 'SEAT', 'ROW', 'TBD', 'NOT', 'ARE', 'ALL',
              'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN', 'DEP', 'ARR', 'VIA', 'BAG', 'OUT', 'ONE'];
@@ -38,11 +42,14 @@ function parse_flights(string $text, array $trip): array {
         $find = function (string $t) use ($stop) { preg_match_all('/\(([A-Z]{3})\)/', $t, $p); if (count($p[1]) >= 2) return $p[1];
             preg_match_all('/\b([A-Z]{3})\b/', $t, $q); return array_values(array_unique(array_filter($q[1], fn($c) => !in_array($c, $stop, true)))); };
         $ports = $find($after); if (count($ports) < 2) $ports = $find($win);
-        preg_match_all('/\b(\d{1,2}):(\d{2})\s*([AaPp])\.?\s?[Mm]?\.?/', $after, $tm, PREG_SET_ORDER);
+        // 6:00 AM, 6:00am, 6:00 a.m., 6:00p — but not the "A" in "12:30 Arrive"
+        preg_match_all('/\b(\d{1,2}):(\d{2})(?:\s*([AaPp])(?:\.?\s?[Mm]\.?)?(?![A-Za-z]))?/', $after, $tm, PREG_SET_ORDER);
         if (!$tm) preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b()/', $after, $tm, PREG_SET_ORDER);
         if (!$tm) preg_match_all('/(?<![\d\/-])\b([01]\d|2[0-3])([0-5]\d)\b(?![\/-])()/', $after, $tm, PREG_SET_ORDER);
         $clock = function (?array $t) { if (!$t) return null; $h = (int)$t[1]; $ap = strtolower($t[3] ?? ''); if ($ap === 'p' && $h < 12) $h += 12; if ($ap === 'a' && $h === 12) $h = 0; return sprintf('%02d:%02d:00', $h, (int)$t[2]); };
         $dep = $clock($tm[0] ?? null); $arr = $clock($tm[1] ?? null);
+        // A date with no year that lands well before the trip belongs to the next year (trips over New Year's)
+        if ($date && $date < date('Y-m-d', strtotime($trip['start_date'] . ' -120 days'))) $date = date('Y-m-d', strtotime($date . ' +1 year'));
         $departs = $date && $dep ? "$date $dep" : null;
         $arrives = $date && $arr ? ($arr < $dep ? date('Y-m-d', strtotime("$date +1 day")) : $date) . " $arr" : null;
         $code = $m[1][$i][0];
@@ -83,3 +90,17 @@ function flight_date(string $s, int $year, &$pos = null, &$len = null): ?string 
     };
     return $t ? date('Y-m-d', $t) : null;
 }
+
+// Time zones for airports, so flight times land at the right hour in calendars
+const AIRPORT_TZ = ['JAX' => 'America/New_York', 'MIA' => 'America/New_York', 'ATL' => 'America/New_York', 'MCO' => 'America/New_York', 'TPA' => 'America/New_York',
+    'FLL' => 'America/New_York', 'CLT' => 'America/New_York', 'JFK' => 'America/New_York', 'EWR' => 'America/New_York', 'LGA' => 'America/New_York', 'IAD' => 'America/New_York',
+    'DCA' => 'America/New_York', 'BOS' => 'America/New_York', 'PHL' => 'America/New_York', 'DTW' => 'America/Detroit', 'IAH' => 'America/Chicago', 'HOU' => 'America/Chicago',
+    'DFW' => 'America/Chicago', 'ORD' => 'America/Chicago', 'MSP' => 'America/Chicago', 'BNA' => 'America/Chicago', 'DEN' => 'America/Denver', 'PHX' => 'America/Phoenix',
+    'LAX' => 'America/Los_Angeles', 'SFO' => 'America/Los_Angeles', 'SEA' => 'America/Los_Angeles', 'BZE' => 'America/Belize', 'GEO' => 'America/Guyana', 'GUA' => 'America/Guatemala',
+    'SAL' => 'America/El_Salvador', 'SAP' => 'America/Tegucigalpa', 'TGU' => 'America/Tegucigalpa', 'RTB' => 'America/Tegucigalpa', 'MGA' => 'America/Managua', 'SJO' => 'America/Costa_Rica',
+    'LIR' => 'America/Costa_Rica', 'PTY' => 'America/Panama', 'PAP' => 'America/Port-au-Prince', 'SDQ' => 'America/Santo_Domingo', 'PUJ' => 'America/Santo_Domingo',
+    'SJU' => 'America/Puerto_Rico', 'MBJ' => 'America/Jamaica', 'KIN' => 'America/Jamaica', 'NAS' => 'America/Nassau', 'MEX' => 'America/Mexico_City', 'CUN' => 'America/Cancun',
+    'BOG' => 'America/Bogota', 'MDE' => 'America/Bogota', 'LIM' => 'America/Lima', 'POS' => 'America/Port_of_Spain', 'TLV' => 'Asia/Jerusalem', 'AMM' => 'Asia/Amman', 'CAI' => 'Africa/Cairo',
+    'IST' => 'Europe/Istanbul', 'LHR' => 'Europe/London', 'CDG' => 'Europe/Paris', 'AMS' => 'Europe/Amsterdam', 'FRA' => 'Europe/Berlin', 'MAD' => 'Europe/Madrid', 'NBO' => 'Africa/Nairobi',
+    'EBB' => 'Africa/Kampala', 'KGL' => 'Africa/Kigali', 'ADD' => 'Africa/Addis_Ababa', 'JNB' => 'Africa/Johannesburg', 'DXB' => 'Asia/Dubai', 'DOH' => 'Asia/Qatar'];
+function airport_tz(?string $code, string $fallback = 'America/New_York'): string { return AIRPORT_TZ[strtoupper((string)$code)] ?? $fallback; }

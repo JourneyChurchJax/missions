@@ -92,6 +92,6 @@ $preview = $_SESSION['flight_preview'][$id] ?? null;
       <form class="form" method="post" action="/action.php"><?= csrf() ?><input type="hidden" name="action" value="flight_save"><input type="hidden" name="trip_id" value="<?= $id ?>">
         <?php $flight_fields(['direction' => 'out']); ?><button class="btn btn-dark" type="submit">Add flight</button></form>
     </div></details>
-    <section class="note"><strong>Coming in phase 5</strong><div class="muted small">AFC Travel sync fills flights in for you once the group is ticketed.</div></section>
+    <section class="note"><strong>Got an itinerary email?</strong><div class="muted small">Paste it into "Paste flights from an email" and the flights fill in for you to check.</div></section>
   </aside>
 </div>

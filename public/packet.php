@@ -2,19 +2,23 @@
 // Trip packet: everything a traveler or parent needs, laid out to print or save as a PDF.
 // Staff: ?trip=ID (add &full=1 for the leader copy with roster, emergency and medical info).
 // Travelers: their own trip. Parents: ?p=their private token.
+if (!empty($_GET['p'])) define('REAL_DB', true);
 require __DIR__ . '/inc/bootstrap.php';
 
-$full = false;
-if (!empty($_GET['p'])) {
-    $g = one('SELECT * FROM guardians WHERE token = ?', [(string)$_GET['p']]);
+$full = false; $staff = false;
+if (g('p') !== '') {
+    $g = one('SELECT * FROM guardians WHERE token = ?', [g('p')]);
+    if ($g && !guardian_link_valid($g)) $g = null;
     $t = $g ? trip_for_person((int)$g['person_id']) : null;
     $back = $g ? '/parent/?t=' . $g['token'] : '/';
 } else {
     require_preview();
-    $staff = ($_SESSION['view'] ?? 'staff') === 'staff';
-    $t = $staff ? trip((int)($_GET['trip'] ?? 0)) : trip_for_person((int)acting_person_id());
-    $full = $staff && !empty($_GET['full']);
-    $back = $staff && $t ? '/admin/trip.php?id=' . $t['id'] : '/trip/';
+    $t = gi('trip') && can('team', gi('trip')) ? trip(gi('trip')) : trip_for_person((int)acting_person_id());
+    $staff = $t && can('team', (int)$t['id']);
+    // The leader copy has medical details: only for people allowed to see them
+    $full = $staff && g('full') !== '' && can('medical', (int)$t['id']);
+    if ($full) audit('packet_leader_copy', 'trips', (int)$t['id'], (int)$t['id']);
+    $back = $staff ? '/admin/trip.php?id=' . $t['id'] : '/trip/';
 }
 if (!$t) { http_response_code(404); exit('Trip not found'); }
 $tid = (int)$t['id'];
@@ -23,14 +27,14 @@ $flights = all("SELECT * FROM flights WHERE trip_id = ? ORDER BY CASE direction 
 $byday = []; foreach (all('SELECT * FROM itinerary WHERE trip_id = ? ORDER BY day, id', [$tid]) as $i) $byday[$i['day']][] = $i;
 $meet = all('SELECT * FROM meetings WHERE trip_id = ? AND starts_at >= ? ORDER BY starts_at', [$tid, date('Y-m-d')]);
 $team = members($tid);
-$sec = function (string $k) use ($gd) { $b = $gd[$k]['body'] ?? ''; return is_placeholder($b) ? '' : '<ul>' . implode('', array_map(fn($l) => '<li>' . e($l) . '</li>', lines($b))) . '</ul>'; };
+$sec = function (string $k) use ($gd) { $ls = clean_lines($gd[$k]['body'] ?? ''); return $ls ? '<ul>' . implode('', array_map(fn($l) => '<li>' . e($l) . '</li>', $ls)) . '</ul>' : ''; };
 ?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title><?= e($t['name']) ?> trip packet · Journey Missions</title>
-<link rel="stylesheet" href="/assets/app.css?v=8">
+<link rel="stylesheet" href="<?= asset('/assets/app.css') ?>">
 <style>
 body{background:var(--sand)}
 .sheet{background:#fff;max-width:820px;margin:24px auto;padding:48px 56px;border-radius:var(--r-md);box-shadow:var(--sh-md);font-size:14.5px;line-height:1.5}
@@ -43,7 +47,7 @@ body{background:var(--sand)}
 </style>
 </head>
 <body>
-<div class="bar-print"><a href="<?= e($back) ?>">‹ Back</a><span style="display:flex;gap:10px"><?php if (!empty($staff) && !$full): ?><a class="btn" href="/packet.php?trip=<?= $tid ?>&full=1">Leader copy</a><?php endif; ?><button class="btn btn-primary" onclick="window.print()">Print or save as PDF</button></span></div>
+<div class="bar-print"><a href="<?= e($back) ?>">‹ Back</a><span style="display:flex;gap:10px"><?php if ($staff && !$full && can('medical', $tid)): ?><a class="btn" href="/packet.php?trip=<?= $tid ?>&full=1">Leader copy</a><?php endif; ?><button class="btn btn-primary" onclick="window.print()">Print or save as PDF</button></span></div>
 <article class="sheet">
   <?= logo(220, false, '#') ?>
   <h1 class="disp" style="font-size:40px;margin:24px 0 4px"><?= e($t['public_name'] ?: $t['name']) ?></h1>
@@ -51,7 +55,7 @@ body{background:var(--sand)}
   <?= $full ? '<p class="small" style="color:var(--ember-small);font-weight:700">LEADER COPY · contains private medical and contact information</p>' : '' ?>
 
   <?php if ($flights): ?><h2>Flights</h2><table><thead><tr><th>Flight</th><th>From</th><th>To</th><th>Departs</th><th>Arrives</th></tr></thead><tbody>
-    <?php foreach ($flights as $f): ?><tr><td><strong><?= e($f['flight_no']) ?></strong><div class="muted small"><?= e($f['airline']) ?></div></td><td><?= e($f['from_code']) ?></td><td><?= e($f['to_code']) ?></td><td><?= $f['departs_at'] ? fdate($f['departs_at'], 'D M j, g:i A') : 'TBD' ?></td><td><?= $f['arrives_at'] ? fdate($f['arrives_at'], 'g:i A') : '' ?><?= $f['notes'] ? '<div class="muted small">' . e($f['notes']) . '</div>' : '' ?></td></tr><?php endforeach; ?>
+    <?php foreach ($flights as $f): ?><tr><td><strong><?= e(flight_label($f['flight_no'])) ?></strong><div class="muted small"><?= e($f['airline']) ?></div></td><td><?= e($f['from_code']) ?></td><td><?= e($f['to_code']) ?></td><td><?= $f['departs_at'] ? fdate($f['departs_at'], 'D M j, g:i A') : 'TBD' ?></td><td><?= $f['arrives_at'] ? fdate($f['arrives_at'], 'g:i A') : '' ?><?= $f['notes'] ? '<div class="muted small">' . e($f['notes']) . '</div>' : '' ?></td></tr><?php endforeach; ?>
   </tbody></table><?php endif; ?>
 
   <?php if ($sec('airport')): ?><h2>Where to meet</h2><?= $sec('airport') ?><?php endif; ?>
@@ -70,7 +74,7 @@ body{background:var(--sand)}
   <?php if ($full): ?>
   <h2 class="pb">Team roster</h2>
   <table><thead><tr><th>Name</th><th>Phone</th><th>Emergency contact</th><th>Passport</th><th>Room / seat</th></tr></thead><tbody>
-    <?php foreach ($team as $m): ?><tr><td><strong><?= e(full_name($m)) ?></strong><div class="muted small"><?= e(ucfirst($m['role'])) ?></div></td><td><?= e($m['phone']) ?></td><td><?= e($m['ec1_name']) ?><div class="muted small"><?= e($m['ec1_phone']) ?></div></td><td><?= e($m['passport_number'] ?: '') ?><div class="muted small"><?= $m['passport_expires'] ? 'exp ' . fdate($m['passport_expires'], 'M Y') : 'none on file' ?></div></td><td><?= e(trim($m['room'] . ' / ' . $m['seat'], ' /')) ?></td></tr><?php endforeach; ?>
+    <?php foreach ($team as $m): ?><tr><td><strong><?= e(full_name($m)) ?></strong><div class="muted small"><?= e(ucfirst($m['role'])) ?></div></td><td><?= e($m['phone']) ?></td><td><?= e($m['ec1_name']) ?><div class="muted small"><?= e($m['ec1_phone']) ?></div></td><td><?= e(mask_passport($m['passport_number'])) ?><div class="muted small"><?= $m['passport_expires'] ? 'exp ' . fdate($m['passport_expires'], 'M Y') : 'none on file' ?></div></td><td><?= e(trim($m['room'] . ' / ' . $m['seat'], ' /')) ?></td></tr><?php endforeach; ?>
   </tbody></table>
   <h2>Medical</h2>
   <table><thead><tr><th>Name</th><th>Allergies</th><th>Medications</th><th>Diet</th><th>Other</th></tr></thead><tbody>

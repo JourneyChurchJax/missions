@@ -2,7 +2,9 @@
 // Applications: forms, questions, applicants, references, deposits.
 
 const Q_KINDS = ['short' => 'Short answer', 'long' => 'Paragraph', 'choice' => 'Pick one', 'checkboxes' => 'Pick any', 'yesno' => 'Yes or no', 'date' => 'Date'];
-const APP_STATUS = ['draft' => 'Started, not sent', 'submitted' => 'To review', 'waitlist' => 'Waitlist', 'approved' => 'Approved', 'declined' => 'Not this time'];
+const APP_STATUS = ['draft' => 'Started, not sent', 'submitted' => 'To review', 'waitlist' => 'Waitlist', 'approved' => 'Approved', 'declined' => 'Declined'];
+// What applicants see
+const APP_STATUS_PUBLIC = ['submitted' => 'Sent', 'waitlist' => 'On the waitlist', 'approved' => 'Approved', 'declined' => 'Not this time'];
 const DEPOSIT_STATUS = ['none' => 'No deposit', 'due' => 'Deposit due', 'paid' => 'Deposit paid', 'waived' => 'Deposit waived'];
 const APP_STEPS = ['you' => 'About you', 'travel' => 'Travel info', 'trip' => 'Trip', 'questions' => 'Questions', 'refs' => 'References', 'review' => 'Review'];
 
@@ -36,7 +38,7 @@ function deposit_for(array $f, ?string $code, ?string $on = null): array {
     $best = 0.0; $label = null;
     foreach (app_discounts((int)$f['id']) as $d) {
         if ($d['expires_on'] && $d['expires_on'] < $on) continue;
-        if (!$d['early_bird'] && strcasecmp((string)$code, (string)$d['code']) !== 0) continue;
+        if (!$d['early_bird'] && ((string)$d['code'] === '' || strcasecmp(trim((string)$code), (string)$d['code']) !== 0)) continue;
         $off = $d['kind'] === 'percent' ? $base * (float)$d['amount'] / 100 : (float)$d['amount'];
         if ($off > $best) { $best = $off; $label = $d['early_bird'] ? 'Early bird' : strtoupper((string)$d['code']); }
     }
@@ -48,8 +50,8 @@ function app_ref_summary(array $a, array $f): string {
     $got = (int)val("SELECT COUNT(*) FROM app_refs WHERE application_id = ? AND status = 'received'", [$a['id']]);
     return $got >= $need ? "$need of $need references in" : "$got of $need references in";
 }
-function app_url(array $f): string { return 'https://missions.journeychurch.org/apply/?f=' . $f['slug']; }
-function ref_url(array $r): string { return 'https://missions.journeychurch.org/reference/?t=' . $r['token']; }
+function app_url(array $f): string { return site_url('/apply/?f=' . $f['slug']); }
+function ref_url(array $r): string { return site_url('/reference/?t=' . $r['token']); }
 
 // Standard reference questions every reference answers
 const REF_QUESTIONS = [

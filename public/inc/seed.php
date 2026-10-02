@@ -273,6 +273,7 @@ function seed_apps_demo(): void {
 // ---------------- Money (phase 3) ----------------
 // Turns each sample traveler's "raised" amount into real gifts and payments that add up to it.
 function seed_money_demo(): void {
+    if (val('SELECT COUNT(*) FROM gifts')) return;
     $now = now(); mt_srand(7);
     $names = [['Maria', 'Lopez'], ['Ben', 'Dalton'], ['Pat', 'Walsh'], ['Lee', 'Huang'], ['Jo', 'Reyes'], ['Kim', 'Carter'], ['Sam', 'Nguyen'],
               ['Alex', 'Murphy'], ['Robin', 'Price'], ['Terry', 'Stone'], ['Dana', 'Brooks'], ['Chris', 'Patel'], ['Jesse', 'Ward'], ['Morgan', 'Ellis'],
@@ -327,6 +328,7 @@ function seed_money_demo(): void {
 
 // ---------------- Communication and trip tools (phase 4) ----------------
 function seed_comms_demo(): void {
+    if (val('SELECT COUNT(*) FROM guardians')) return;
     $now = now();
     $bz = (int)val("SELECT id FROM trips WHERE slug = 'belize'");
     foreach (all("SELECT p.* FROM people p JOIN members m ON m.person_id = p.id WHERE m.trip_id = ? AND p.ec1_rel = 'Parent/Guardian'", [$bz]) as $p)
@@ -358,9 +360,10 @@ function seed_phase5(bool $demo): void {
         foreach (all('SELECT * FROM tasks WHERE title = ?', [$title]) as $tk) {
             $fid = val('SELECT id FROM files WHERE trip_id = ? AND title = ?', [$tk['trip_id'], $doc]);
             update('tasks', (int)$tk['id'], ['type' => 'sign', 'file_id' => $fid ? (int)$fid : null, 'description' => $text, 'parent_sign' => $parent, 'allow_self' => 1]);
-            foreach (all('SELECT d.*, p.first_name, p.preferred_name, p.last_name FROM task_done d JOIN people p ON p.id = d.person_id WHERE d.task_id = ?', [$tk['id']]) as $d)
+            // Sample data only: turn the sample checkmarks into typed sample signatures. Real data never gets made-up signatures.
+            if ($demo) foreach (all('SELECT d.*, p.first_name, p.preferred_name, p.last_name FROM task_done d JOIN people p ON p.id = d.person_id WHERE d.task_id = ?', [$tk['id']]) as $d)
                 insert('signatures', ['task_id' => $tk['id'], 'person_id' => $d['person_id'], 'signer_role' => 'traveler', 'signer_name' => full_name($d), 'agreement' => $text,
-                    'doc_title' => $doc, 'ip' => 'Recorded before e-signatures', 'signed_at' => $d['done_at']]);
+                    'doc_title' => $doc, 'ip' => 'Sample data', 'sig_mode' => 'typed', 'signed_at' => $d['done_at']]);
         }
     }
     q("UPDATE trips SET bg_required = 'leaders' WHERE bg_required IS NULL");
@@ -380,4 +383,35 @@ function seed_phase5(bool $demo): void {
         update('gifts', (int)$g['id'], ['message' => ['So proud of you!', 'Praying for you and the team.', 'Go get em!', 'Love you, have an amazing trip.', 'Thankful you said yes.', 'Bring back stories!'][$i]]);
     $g = one("SELECT * FROM gifts WHERE method = 'card' AND person_id IS NOT NULL ORDER BY id LIMIT 1");
     if ($g) { $rid = insert('recurring', ['donor_id' => $g['donor_id'], 'trip_id' => $g['trip_id'], 'person_id' => $g['person_id'], 'amount' => $g['amount'], 'stripe_sub_id' => 'sub_sample', 'status' => 'active', 'created_at' => $now]); update('gifts', (int)$g['id'], ['recurring_id' => $rid]); }
+}
+
+// ---------------- v6: safety upgrade ----------------
+const TRIP_TIMEZONES = ['belize' => 'America/Belize', 'israel' => 'Asia/Jerusalem', 'guyana' => 'America/Guyana', 'guatemala' => 'America/Guatemala',
+    'honduras' => 'America/Tegucigalpa', 'haiti' => 'America/Port-au-Prince', 'dominican republic' => 'America/Santo_Domingo', 'mexico' => 'America/Mexico_City',
+    'costa rica' => 'America/Costa_Rica', 'nicaragua' => 'America/Managua', 'kenya' => 'Africa/Nairobi', 'uganda' => 'Africa/Kampala', 'peru' => 'America/Lima',
+    'puerto rico' => 'America/Puerto_Rico', 'jamaica' => 'America/Jamaica', 'united states' => 'America/New_York', 'usa' => 'America/New_York'];
+function guess_timezone(?string $country): string { return TRIP_TIMEZONES[strtolower(trim((string)$country))] ?? 'America/New_York'; }
+function upgrade_v6(): void {
+    // The v5 upgrade turned old checkmarks into signature records people never actually signed. Remove them.
+    q("DELETE FROM signatures WHERE ip = 'Recorded before e-signatures'");
+    // Signature tasks are now done only when real signatures exist
+    q("DELETE FROM task_done WHERE task_id IN (SELECT id FROM tasks WHERE type = 'sign')");
+    q("UPDATE tasks SET description = 'I have read this document and agree to it.' WHERE type = 'sign' AND (description IS NULL OR description = '')");
+    // Duplicates would block the new unique rules
+    q('DELETE FROM task_done WHERE id NOT IN (SELECT MIN(id) FROM task_done GROUP BY task_id, person_id)');
+    q('DELETE FROM members WHERE id NOT IN (SELECT MIN(id) FROM members GROUP BY trip_id, person_id)');
+    q("UPDATE payments SET status = 'ok' WHERE status IS NULL");
+    q("UPDATE expenses SET status = 'ok' WHERE status IS NULL");
+    q('UPDATE gifts SET refunded = 0 WHERE refunded IS NULL');
+    // Plain-English budget categories
+    foreach (['Meals/Food' => 'Food', 'Transportation-Other' => 'Ground transportation', 'Taxes/Visas' => 'Taxes and visas', 'Debrief/Tourism' => 'Debrief and tourism', 'MISC' => 'Other'] as $old => $new) {
+        q('UPDATE budget SET type = ? WHERE type = ?', [$new, $old]); q('UPDATE expenses SET type = ? WHERE type = ?', [$new, $old]);
+    }
+    q('UPDATE gifts SET covered_fee = 0 WHERE covered_fee IS NULL');
+    foreach (all('SELECT id, country FROM trips WHERE timezone IS NULL') as $t) update('trips', (int)$t['id'], ['timezone' => guess_timezone($t['country'])]);
+    // Encrypt passport numbers and medical details that were saved before encryption existed
+    foreach (all('SELECT id, ' . implode(', ', SENSITIVE_FIELDS) . ' FROM people') as $p) {
+        $row = []; foreach (SENSITIVE_FIELDS as $f) if ($p[$f] !== null && $p[$f] !== '' && !str_starts_with((string)$p[$f], 'enc1:')) $row[$f] = $p[$f];
+        if ($row) update('people', (int)$p['id'], $row);
+    }
 }

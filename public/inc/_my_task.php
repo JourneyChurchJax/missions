@@ -2,7 +2,7 @@
 // One task row for the signed-in traveler. Expects $k (task with done_at, file_id), $me (person).
 $done = (bool)$k['done_at'];
 ?>
-<div class="cell" style="flex-wrap:wrap;min-height:64px">
+<div class="cell task" id="task-<?= (int)$k['id'] ?>">
   <?php if ($k['type'] === 'traveler'): ?>
     <form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="task_toggle"><input type="hidden" name="id" value="<?= (int)$k['id'] ?>">
       <button class="check<?= $done ? ' done' : '' ?>" type="submit" aria-label="<?= $done ? 'Mark not done' : 'Mark done' ?>: <?= e($k['title']) ?>"<?= $k['allow_self'] ? '' : ' disabled' ?>>✓</button></form>
@@ -13,6 +13,7 @@ $done = (bool)$k['done_at'];
     <div class="muted small"><?= $done ? 'Done ' . fdate($k['done_at'], 'M j') : ($k['due_date'] ? 'Due ' . fdate($k['due_date'], 'M j') : '') ?><?= $k['description'] && !$done && $k['type'] !== 'sign' ? ' · ' . e($k['description']) : '' ?></div>
     <?php if ($k['file_id']): ?><a class="small" href="/file.php?id=<?= (int)$k['file_id'] ?>">See what you uploaded</a><?php endif; ?>
   </div>
+  <?php ob_start(); ?>
   <?php if ($k['type'] === 'sign'): [$signed, $psigned, $pneed] = signature_state($k, (int)$me['id']); ?>
     <?php if (!$signed): ?><a class="btn btn-primary" href="/sign.php?task=<?= (int)$k['id'] ?>" style="height:38px">Read and sign</a>
     <?php elseif ($pneed && !$psigned): ?><span class="muted small">You signed. Waiting for a parent.</span>
@@ -34,4 +35,5 @@ $done = (bool)$k['done_at'];
   <?php elseif ($k['type'] === 'traveler' && !$done && $k['allow_self']): ?>
     <span class="muted small">Tap the circle when it's done</span>
   <?php endif; ?>
+  <?php $act = trim(ob_get_clean()); if ($act !== ''): ?><div class="task-act"><?= $act ?></div><?php endif; ?>
 </div>

@@ -12,10 +12,10 @@ $payments = all('SELECT * FROM payments WHERE trip_id = ? AND person_id = ? ORDE
 page_open('Fundraising');
 member_header('fund');
 ?>
-<main class="main m">
+<main class="main m" id="main">
   <div class="head"><div class="sub"><div class="muted" style="font-size:15px;font-weight:600"><?= e($t['name']) ?> · <?= e(date_range($t['start_date'], $t['end_date'])) ?></div><h1 class="disp">Fundraising</h1></div></div>
 
-  <section class="split" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px">
+  <section class="split wide-left">
     <div class="tile dark" style="padding:32px;flex-direction:row;gap:32px;align-items:center;flex-wrap:wrap">
       <?= ring($p, 100, 160, true, $p . '%') ?>
       <div style="display:flex;flex-direction:column;gap:6px"><div class="k">You've raised</div><div class="disp" style="font-size:68px"><?= money($raised) ?></div><div style="color:rgba(247,244,240,.85)">of <?= money($goal) ?> · <?= money(max(0, $goal - $raised)) ?> to go</div></div>
@@ -61,10 +61,10 @@ member_header('fund');
   <div class="g2" style="gap:28px;align-items:start">
     <section><div class="gh"><span>Your supporters</span><span class="muted small"><?= count($supporters) ?> gift<?= count($supporters) === 1 ? '' : 's' ?> · <?= $to_thank ?> to thank</span></div><div class="group">
       <?php foreach ($supporters as $g): $d = $g['donor_id'] && !$g['anonymous'] ? donor((int)$g['donor_id']) : null; ?>
-        <div class="cell"><span class="av"><?= $d ? initials(donor_name($d)) : '♥' ?></span>
+        <div class="cell"><span class="av" aria-hidden="true"><?= $d ? e(initials(donor_name($d))) : '♥' ?></span>
           <div class="grow"><strong><?= e(gift_from($g)) ?></strong><div class="muted small"><?= fdate($g['gift_date'], 'M j') ?> · <?= money((float)$g['amount']) ?><?= $g['thanked_at'] ? ' · thanked' : '' ?></div></div>
           <?php if ($d && $d['email'] && !$g['thanked_at']): ?><a class="small" href="mailto:<?= e($d['email']) ?>?subject=<?= rawurlencode('Thank you!') ?>&body=<?= rawurlencode('Thank you so much for supporting my trip to ' . $t['name'] . '. It means a lot!') ?>">Email</a><?php endif; ?>
-          <form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="gift_thank"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn"><?= $g['thanked_at'] ? 'Undo' : 'Thanked' ?></button></form>
+          <form method="post" action="/action.php" class="inline"><?= csrf() ?><input type="hidden" name="action" value="gift_thank"><input type="hidden" name="id" value="<?= (int)$g['id'] ?>"><button class="link-btn"><?= $g['thanked_at'] ? 'Undo' : 'Mark thanked' ?></button></form>
         </div>
       <?php endforeach; ?>
       <?= $supporters ? '' : '<div class="empty">No gifts yet. Share your page to get started.</div>' ?>
@@ -81,6 +81,6 @@ member_header('fund');
   </div>
 </main>
 <dialog id="qr" style="border:0;border-radius:var(--r-xl);padding:28px;box-shadow:var(--sh-xl);text-align:center"><div id="qrbox"></div><p class="muted small">Print it or put it on a slide.</p><button class="btn" onclick="this.closest('dialog').close()">Close</button></dialog>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>document.querySelectorAll('[data-qr]').forEach(b => b.addEventListener('click', () => { const q = qrcode(0, 'M'); q.addData(b.dataset.qr); q.make(); document.getElementById('qrbox').innerHTML = q.createSvgTag({ cellSize: 6, margin: 2 }); document.getElementById('qr').showModal(); }));</script>
 <?php page_close(); ?>

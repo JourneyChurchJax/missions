@@ -68,7 +68,9 @@ function pco_pull_background(int $person_id, string $pco_id): bool {
     if (!$b) return false;
     $a = $b['attributes'] ?? [];
     $status = strtolower((string)($a['status'] ?? $a['result'] ?? ''));
-    $mapped = str_contains($status, 'pass') || str_contains($status, 'clear') || str_contains($status, 'complete') ? 'clear' : (str_contains($status, 'fail') || str_contains($status, 'review') || str_contains($status, 'manual') ? 'review' : 'requested');
+    // Exact values only, so "incomplete" or "not_clear" can never be read as clear
+    $mapped = in_array($status, ['report_clear', 'clear', 'passed', 'pass', 'approved'], true) ? 'clear'
+        : (in_array($status, ['manual_review', 'needs_review', 'review', 'report_flagged', 'flagged', 'failed', 'fail', 'not_clear', 'declined'], true) ? 'review' : 'requested');
     if (isset($a['current']) && $a['current'] === false && $mapped === 'clear') $mapped = 'expired';
     $row = ['person_id' => $person_id, 'provider' => 'Planning Center', 'status' => $mapped, 'requested_at' => substr((string)($a['created_at'] ?? date('Y-m-d')), 0, 10),
             'completed_at' => isset($a['completed_at']) ? substr((string)$a['completed_at'], 0, 10) : null, 'expires_on' => isset($a['expires_on']) ? substr((string)$a['expires_on'], 0, 10) : null,
@@ -80,11 +82,19 @@ function pco_pull_background(int $person_id, string $pco_id): bool {
 
 // ---------- Signed-in users (Planning Center sign-in) ----------
 // $_SESSION['auth'] = ['person_id' => int, 'staff' => bool, 'name' => string]
+// Staff are only ever decided here, from settings a traveler can't touch: the "Staff access" switch on a person's page
+// (staff only), or Planning Center IDs listed in config.php ('staff_pco_ids' => ['12345']). Never from an email address.
 function auth_user(): ?array { return $_SESSION['auth'] ?? null; }
-function is_staff_person(?array $p, bool $pco_admin = false): bool {
+function is_staff_person(?array $p): bool {
     global $config;
-    if ($pco_admin) return true;
     if (!$p) return false;
-    $emails = array_map('strtolower', (array)($config['staff_emails'] ?? []));
-    return ($p['email'] && in_array(strtolower($p['email']), $emails, true)) || stripos((string)$p['tags'], 'staff') !== false;
+    return !empty($p['is_staff']) || ($p['pco_id'] && in_array((string)$p['pco_id'], array_map('strval', (array)($config['staff_pco_ids'] ?? [])), true));
+}
+// Sign someone in after Planning Center (or an email code) proved who they are
+function sign_in_person(array $p): void {
+    session_regenerate_id(true);
+    $staff = is_staff_person($p);
+    $_SESSION = ['auth' => ['person_id' => (int)$p['id'], 'staff' => $staff, 'name' => full_name($p)], 'view' => $staff ? 'staff' : 'traveler', 'since' => time(), 'seen' => time()];
+    if (!$staff) $_SESSION['person_id'] = (int)$p['id'];
+    audit('signin', 'people', (int)$p['id'], null, 'Planning Center');
 }

@@ -36,7 +36,8 @@ function stripe_fee(float $amount): float { return round($amount * 0.029 + 0.30,
 function with_fee_covered(float $amount): float { return round(($amount + 0.30) / (1 - 0.029), 2); }
 
 // Start a Stripe Checkout page. $kind: gift | payment | app_deposit. Returns the URL to send the person to.
-function stripe_checkout(string $kind, float $amount, string $label, array $meta, string $success, string $cancel, ?string $email = null, bool $monthly = false): string {
+// Monthly gifts stop on their own at $stop_on (the trip date), so nobody is charged forever.
+function stripe_checkout(string $kind, float $amount, string $label, array $meta, string $success, string $cancel, ?string $email = null, bool $monthly = false, ?string $stop_on = null): string {
     $cents = (int)round($amount * 100);
     $meta = array_map(fn($v) => mb_substr((string)$v, 0, 480), $meta + ['kind' => $kind]);
     $price = ['currency' => 'usd', 'unit_amount' => $cents, 'product_data' => ['name' => mb_substr($label, 0, 120)]];
@@ -44,8 +45,14 @@ function stripe_checkout(string $kind, float $amount, string $label, array $meta
     $params = ['mode' => $monthly ? 'subscription' : 'payment', 'line_items' => [['quantity' => 1, 'price_data' => $price]],
         'success_url' => $success, 'cancel_url' => $cancel, 'customer_email' => $email ?: null, 'metadata' => $meta,
         'billing_address_collection' => $kind === 'gift' ? 'required' : 'auto'];
-    if ($monthly) $params['subscription_data'] = ['metadata' => $meta];
-    else { $params['payment_intent_data'] = ['metadata' => $meta, 'description' => mb_substr($label, 0, 200)]; $params['submit_type'] = $kind === 'gift' ? 'donate' : 'pay'; }
+    if ($monthly) {
+        $params['subscription_data'] = ['metadata' => $meta];
+        if ($stop_on && strtotime($stop_on) > time() + 86400) $params['subscription_data']['cancel_at'] = strtotime($stop_on . ' 12:00:00');
+    } else {
+        $params['payment_intent_data'] = ['metadata' => $meta, 'description' => mb_substr($label, 0, 200)];
+        $params['submit_type'] = $kind === 'gift' ? 'donate' : 'pay';
+        $params['customer_creation'] = 'always';
+    }
     $s = stripe_api('POST', '/v1/checkout/sessions', $params);
     return $s['url'];
 }
@@ -72,35 +79,56 @@ function stripe_actual_fee(?string $payment_intent, float $amount): float {
 }
 
 // Save one online gift (from checkout or a monthly renewal). Safe to call twice for the same payment.
-function record_stripe_gift(array $meta, float $amount, string $stripe_id, ?string $payment_intent, array $customer, ?int $recurring_id = null): int {
+// $created is when Stripe took the payment, so a Dec 31 gift stays in that tax year even if we hear about it later.
+function record_stripe_gift(array $meta, float $amount, string $stripe_id, ?string $payment_intent, array $customer, ?int $recurring_id = null, ?int $created = null, ?string $customer_id = null): int {
     if ($g = one('SELECT id FROM gifts WHERE stripe_id = ?', [$stripe_id])) return (int)$g['id'];
     $name = trim((string)($customer['name'] ?? ''));
     $parts = preg_split('/\s+/', $name, 2);
-    $donor = find_or_make_donor($meta['first'] ?? ($parts[0] ?? ''), $meta['last'] ?? ($parts[1] ?? ''), (string)($customer['email'] ?? ''));
+    $donor = find_or_make_donor($meta['first'] ?? ($parts[0] ?? ''), $meta['last'] ?? ($parts[1] ?? ''), (string)($customer['email'] ?? ''), '', $customer_id);
     if ($donor && !empty($customer['address']['line1'])) {
         $d = donor($donor);
         if (!$d['address']) update('donors', $donor, ['address' => $customer['address']['line1'], 'city' => $customer['address']['city'] ?? null, 'state' => $customer['address']['state'] ?? null, 'zip' => $customer['address']['postal_code'] ?? null]);
     }
     $trip = (int)($meta['trip_id'] ?? 0) ?: null; $person = (int)($meta['person_id'] ?? 0) ?: null;
     if ($trip && $person && !member_of($trip, $person)) $person = null;
-    $id = insert('gifts', ['donor_id' => $donor, 'trip_id' => $trip, 'person_id' => $person, 'amount' => $amount, 'fee' => stripe_actual_fee($payment_intent, $amount),
-        'method' => 'card', 'gift_date' => date('Y-m-d'), 'anonymous' => !empty($meta['anonymous']) ? 1 : 0, 'message' => nn($meta['message'] ?? null),
-        'source' => 'stripe', 'status' => 'cleared', 'stripe_id' => $stripe_id, 'recurring_id' => $recurring_id, 'created_by' => 'Stripe', 'created_at' => now()]);
+    $covered = min($amount, max(0, (float)($meta['covered_fee'] ?? 0)));
+    $id = insert('gifts', ['donor_id' => $donor, 'trip_id' => $trip, 'person_id' => $person, 'amount' => $amount, 'fee' => stripe_actual_fee($payment_intent, $amount), 'covered_fee' => $covered, 'refunded' => 0,
+        'method' => 'card', 'gift_date' => date('Y-m-d', $created ?: time()), 'anonymous' => !empty($meta['anonymous']) ? 1 : 0, 'message' => nn($meta['message'] ?? null),
+        'source' => 'stripe', 'status' => 'cleared', 'stripe_id' => $stripe_id, 'stripe_pi' => $payment_intent, 'recurring_id' => $recurring_id, 'created_by' => 'Stripe', 'created_at' => now()]);
     sync_raised($trip, $person);
     if ($trip) insert('activity', ['trip_id' => $trip, 'who' => 'Stripe', 'what' => 'Online gift of ' . money($amount, 2) . ' for ' . gift_for(['trip_id' => $trip, 'person_id' => $person]), 'created_at' => now()]);
-    // Let the traveler know right away
-    if ($person && ($p = person($person)) && $p['email']) send_email($p['email'], 'You got a gift!', "Someone just gave " . money($amount, 2) . " toward your " . (trip($trip)['name'] ?? '') . " trip" . (!empty($meta['anonymous']) ? '' : ' from ' . donor_name($donor ? donor($donor) : null)) . ".\n\nSee it and say thanks: " . site_url('/trip/fundraising.php'), $trip, $person);
-    if (!empty($customer['email'])) send_email((string)$customer['email'], 'Thank you for your gift', "Thank you for giving " . money($amount, 2) . " to Journey Church missions" . ($person ? ' for ' . full_name(person($person)) : '') . ".\n\nYou'll get a year-end statement for your taxes. No goods or services were provided in exchange for this gift.", $trip, null);
+    if ($person && ($p = person_basic($person)) && $p['email']) queue_email($p['email'], 'You got a gift!', "Someone just gave " . money($amount - $covered, 2) . " toward your " . (trip($trip)['name'] ?? '') . " trip" . (!empty($meta['anonymous']) ? '' : ' from ' . donor_name($donor ? donor($donor) : null)) . ".\n\nSee it and say thanks: " . site_url('/trip/fundraising.php'), $trip, $person);
+    if (!empty($customer['email'])) queue_email((string)$customer['email'], 'Thank you for your gift', "Thank you for giving " . money($amount, 2) . " to " . church_name() . " for its missions ministry" . ($person ? ' (preferred for ' . full_name(person_basic($person)) . "'s trip)" : '') . ".\n\n" . discretion_text() . "\n\nNo goods or services were provided in exchange for this gift. You'll get a year-end statement for your taxes.", $trip, null);
     return $id;
+}
+
+// ---------- Tax wording ----------
+// The church decides how gifts are used. A traveler's name is a preference, which keeps gifts tax-deductible.
+function discretion_text(): string { return 'Gifts are made to ' . church_name() . ' and are under its full discretion and control. A traveler or trip you name is a preference, not a restriction. If a trip is cancelled, a traveler can\'t go, or a trip is fully funded, gifts support other missions work.'; }
+function church_legal(): array { global $config; return ['name' => (string)($config['church_legal_name'] ?? church_name()), 'address' => (string)($config['church_address'] ?? ''), 'ein' => (string)($config['church_ein'] ?? '')]; }
+// Plain-text year-end statement for email
+function statement_text(array $d, int $yr): string {
+    $lines = array_map(fn($g) => fdate($g['gift_date'], 'M j') . '  ' . str_pad(money((float)$g['amount'] - (float)$g['refunded'], 2), 12, ' ', STR_PAD_LEFT) . '  ' . (GIFT_METHODS[$g['method']] ?? ''), array_reverse(gifts(['donor' => (int)$d['id'], 'year' => $yr], 5000)));
+    $l = church_legal();
+    return "Dear " . ($d['first_name'] ?: donor_name($d)) . ",\n\nThank you for supporting " . $l['name'] . " missions in $yr. Here are your gifts:\n\n" . implode("\n", $lines) . "\n\nTotal: " . money((float)$d['total'], 2)
+        . "\n\nNo goods or services were provided in exchange for these contributions, other than intangible religious benefits. " . discretion_text() . " Please keep this statement for your tax records.\n\n" . $l['name'] . ($l['address'] ? "\n" . $l['address'] : '') . ($l['ein'] ? "\nEIN " . $l['ein'] : '');
+}
+// Public pages show a minor's first name and last initial only
+function public_name(array $p, ?string $trip_start = null): string {
+    $first = (($p['preferred_name'] ?? '') ?: ($p['first_name'] ?? ''));
+    return $trip_start && !empty($p['birth_date']) && is_minor($p, $trip_start) ? trim($first . ' ' . mb_substr((string)$p['last_name'], 0, 1) . '.') : trim($first . ' ' . ($p['last_name'] ?? ''));
 }
 
 // ---------- Fundraising pages ----------
 const PAGE_STATUS = ['draft' => 'Not shared yet', 'pending' => 'Waiting for approval', 'live' => 'Live', 'hidden' => 'Hidden by staff'];
-function unique_page_slug(array $p): string {
-    $base = strtolower(preg_replace('/[^a-z0-9]+/i', '', (string)($p['preferred_name'] ?: $p['first_name']))) ?: 'traveler';
-    $reserved = ['admin', 'trip', 'apply', 'reference', 'parent', 'give', 'assets', 'inc', 'auth', 'signin', 'signout', 'index', 'calendar', 'chat', 'packet', 'sign', 'file', 'action', 'stripe'];
+const RESERVED_SLUGS = ['admin', 'trip', 'apply', 'reference', 'parent', 'give', 'assets', 'inc', 'auth', 'signin', 'signout', 'index', 'calendar', 'chat', 'packet',
+    'sign', 'file', 'action', 'stripe', 'health', 'cron', 'twilio', 'search', 'data', 'well', 'api', 'login', 'logout', 'help', 'about', 'journey', 'missions', 'staff'];
+function unique_page_slug(?array $p): string {
+    $base = $p ? strtolower(preg_replace('/[^a-z0-9]+/i', '', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string)(($p['preferred_name'] ?? '') ?: ($p['first_name'] ?? ''))) ?: '')) : '';
+    $base = substr($base ?: 'traveler', 0, 30); if (strlen($base) < 3) $base .= 'trip';
+    $reserved = RESERVED_SLUGS;
     $slug = $base; $i = 1;
-    $lastInitial = strtolower(substr((string)$p['last_name'], 0, 1));
+    $lastInitial = strtolower(substr(preg_replace('/[^a-z]/i', '', (string)($p['last_name'] ?? '')), 0, 1));
     while (in_array($slug, $reserved, true) || val('SELECT COUNT(*) FROM members WHERE page_slug = ?', [$slug])) {
         $slug = $i === 1 && $lastInitial ? $base . $lastInitial : $base . ($lastInitial ?: '') . $i;
         $i++;
@@ -111,6 +139,6 @@ function page_url(array $m): string { return site_url('/' . $m['page_slug']); }
 function approve_pages(): bool { return site_settings()['approve_pages'] ?? true; }
 // A traveler's page row with person and trip, by slug
 function page_by_slug(string $slug): ?array {
-    return one("SELECT m.*, p.first_name, p.preferred_name, p.last_name, t.name AS trip_name, t.public_name, t.start_date, t.end_date, t.city, t.country, t.cost_per_person, t.status AS trip_status
+    return one("SELECT m.*, p.first_name, p.preferred_name, p.last_name, p.birth_date, t.name AS trip_name, t.public_name, t.start_date, t.end_date, t.city, t.country, t.cost_per_person, t.status AS trip_status
                 FROM members m JOIN people p ON p.id = m.person_id JOIN trips t ON t.id = m.trip_id WHERE m.page_slug = ?", [strtolower($slug)]);
 }

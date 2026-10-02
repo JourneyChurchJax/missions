@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
+require_staff();
 $d = isset($_GET['id']) ? donor((int)$_GET['id']) : null;
 $list = $d ? gifts(['donor' => (int)$d['id']], 1000) : [];
 $val = fn($k) => e($d[$k] ?? '');

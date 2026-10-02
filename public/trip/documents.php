@@ -2,22 +2,22 @@
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require dirname(__DIR__) . '/inc/member.php';
 $docs = all("SELECT f.*, a.opened_at, a.acked_at FROM files f LEFT JOIN file_acks a ON a.file_id = f.id AND a.person_id = ?
-             WHERE f.trip_id = ? AND f.visible = 1 AND f.person_id IS NULL AND f.kind = 'doc' ORDER BY f.id", [$me_id, $tid]);
-$links = all("SELECT * FROM files WHERE trip_id = ? AND visible = 1 AND person_id IS NULL AND kind = 'link' ORDER BY id", [$tid]);
-$mine = all('SELECT * FROM files WHERE person_id = ? ORDER BY id DESC', [$me_id]);
+             WHERE f.trip_id = ? AND f.visible = 1 AND f.person_id IS NULL AND f.kind = 'doc' AND f.path IS NOT NULL ORDER BY f.id", [$me_id, $tid]);
+$links = all("SELECT * FROM files WHERE trip_id = ? AND visible = 1 AND person_id IS NULL AND kind IN ('link','doc') AND path IS NULL AND url IS NOT NULL AND url <> '' ORDER BY id", [$tid]);
+$mine = all("SELECT * FROM files WHERE person_id = ? AND kind IN ('upload','pagephoto') ORDER BY id DESC", [$me_id]);
 $upload_tasks = array_values(array_filter($my_tasks, fn($k) => $k['type'] === 'upload'));
 $needs = array_values(array_filter($upload_tasks, fn($k) => !$k['done_at']));
 $need_count = count($needs) + count($unread);
 page_open('Documents');
 member_header('docs');
 ?>
-<main class="main m">
+<main class="main m" id="main">
   <div class="head">
     <div class="sub"><div class="muted" style="font-size:15px;font-weight:600"><?= e($t['name']) ?> · <?= e(date_range($t['start_date'], $t['end_date'])) ?></div><h1 class="disp">Documents</h1></div>
     <a class="btn btn-primary" href="/packet.php" target="_blank">Trip packet (print or PDF)</a>
   </div>
 
-  <div class="split" style="grid-template-columns:minmax(0,1fr) 360px;gap:40px">
+  <div class="split side-380">
     <div style="display:flex;flex-direction:column;gap:28px">
       <?php if ($need_count): ?>
       <section><div class="gh">Needs you · <?= $need_count ?></div><div class="group">

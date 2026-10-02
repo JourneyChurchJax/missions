@@ -1,7 +1,7 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$t = isset($_GET['id']) ? trip((int)$_GET['id']) : null;
+require_staff();
+$t = gi('id') ? trip(gi('id')) : null;
 $all = all('SELECT id, name, start_date FROM trips ORDER BY start_date DESC');
 page_open($t ? 'Edit ' . $t['name'] : 'New trip');
 admin_header('trips');
@@ -31,6 +31,7 @@ $v = fn($k) => e($t[$k] ?? '');
       <label class="lab">Country<input type="text" name="country" value="<?= $v('country') ?>"></label>
       <label class="lab">Partner<input type="text" name="partner" value="<?= $v('partner') ?>" placeholder="Adventures in Missions"></label>
     </div>
+    <label class="lab">Local time zone (for calendar times)<select name="timezone"><option value="">Pick from the country</option><?php foreach (['America/New_York' => 'U.S. Eastern', 'America/Chicago' => 'U.S. Central', 'America/Belize' => 'Belize', 'America/Guyana' => 'Guyana', 'America/Guatemala' => 'Guatemala', 'America/Tegucigalpa' => 'Honduras', 'America/Port-au-Prince' => 'Haiti', 'America/Santo_Domingo' => 'Dominican Republic', 'America/Mexico_City' => 'Mexico (central)', 'America/Costa_Rica' => 'Costa Rica', 'America/Lima' => 'Peru', 'Asia/Jerusalem' => 'Israel', 'Africa/Nairobi' => 'Kenya', 'Africa/Kampala' => 'Uganda', 'Europe/London' => 'United Kingdom'] as $tz => $l): ?><option value="<?= $tz ?>"<?= ($t['timezone'] ?? '') === $tz ? ' selected' : '' ?>><?= $l ?></option><?php endforeach; ?></select></label>
     <div class="r3">
       <label class="lab">Cost per traveler<input type="number" step="0.01" name="cost_per_person" value="<?= $v('cost_per_person') ?>"></label>
       <label class="lab">Max team size<input type="number" name="max_team" value="<?= $v('max_team') ?>"></label>
@@ -49,7 +50,7 @@ $v = fn($k) => e($t[$k] ?? '');
     <div><strong>Trip status</strong><div class="muted small">Cancelled and postponed trips move off the home page. Trips archive 30 days after they return.</div></div>
     <div style="display:flex;gap:8px">
       <?php foreach (['active' => 'Active', 'postponed' => 'Postponed', 'cancelled' => 'Cancelled'] as $k => $l): ?>
-        <button class="btn<?= $t['status'] === $k ? ' btn-dark' : '' ?>" name="status" value="<?= $k ?>" type="submit"><?= $l ?></button>
+        <button class="btn<?= $t['status'] === $k ? ' btn-dark' : '' ?>" name="status" value="<?= $k ?>" type="submit"<?= $k === 'cancelled' && $t['status'] !== 'cancelled' ? ' data-confirm-btn="Cancel this trip? Monthly gifts to it will stop."' : '' ?>><?= $l ?></button>
       <?php endforeach; ?>
     </div>
   </form>
@@ -68,9 +69,9 @@ $v = fn($k) => e($t[$k] ?? '');
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
-    <form class="form" method="post" action="/action.php" enctype="multipart/form-data" style="grid-template-columns:1fr auto;align-items:end">
+    <form class="form" method="post" action="/action.php" enctype="multipart/form-data" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
       <?= csrf() ?><input type="hidden" name="action" value="photo_upload"><input type="hidden" name="trip_id" value="<?= (int)$t['id'] ?>">
-      <label class="lab">Add photos (choose several at once)<input type="file" name="photos[]" accept="image/*" multiple></label>
+      <label class="lab">Add photos (choose several at once)<input type="file" name="photos[]" style="max-width:100%" accept="image/*" multiple></label>
       <button class="btn btn-dark" type="submit">Upload</button>
     </form>
   </section>

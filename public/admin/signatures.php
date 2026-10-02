@@ -1,9 +1,11 @@
 <?php
 // Signed documents: everyone on one task (?task=ID) or everything one person signed (?person=ID). Prints as a record.
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$task = isset($_GET['task']) ? one('SELECT * FROM tasks WHERE id = ?', [(int)$_GET['task']]) : null;
-$person = isset($_GET['person']) ? person((int)$_GET['person']) : null;
+require_preview();
+$task = gi('task') ? one('SELECT * FROM tasks WHERE id = ?', [gi('task')]) : null;
+$person = gi('person') ? person(gi('person')) : null;
+if ($task) require_trip((int)$task['trip_id'], 'tasks'); else require_staff();
+audit('signatures_view', $task ? 'tasks' : 'people', $task ? (int)$task['id'] : (int)($person['id'] ?? 0));
 if ($task) {
     $t = trip((int)$task['trip_id']);
     $rows = [];

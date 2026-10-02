@@ -1,7 +1,7 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
-$f = isset($_GET['id']) ? app_form((int)$_GET['id']) : null;
+require_staff();
+$f = gi('id') ? app_form(gi('id')) : null;
 $trips = all("SELECT * FROM trips WHERE status = 'active' AND end_date >= ? ORDER BY start_date", [date('Y-m-d')]);
 $picked = $f ? array_map('intval', array_filter(explode(',', (string)$f['trip_ids']))) : [];
 $locked = $f && form_has_responses((int)$f['id']);
@@ -36,7 +36,7 @@ admin_header('apps');
     <div class="r3">
       <label class="lab">References needed<select name="refs_required"><?php for ($n = 0; $n <= 3; $n++): ?><option<?= (int)($f['refs_required'] ?? 0) === $n ? ' selected' : '' ?>><?= $n ?></option><?php endfor; ?></select></label>
       <label class="lab">Deposit<input type="number" step="0.01" min="0" name="deposit" value="<?= $v('deposit') ?>" placeholder="0"></label>
-      <label class="lab">&nbsp;<span class="chk" style="display:flex;gap:8px;align-items:center;font-weight:400;color:var(--ink);height:44px"><input type="checkbox" name="deposit_tax" value="1"<?= !empty($f['deposit_tax']) ? ' checked' : '' ?>> Deposit is tax-deductible</span></label>
+      <div class="muted small" style="align-self:end;padding-bottom:12px">A deposit toward someone's own trip isn't a tax-deductible gift.</div>
     </div>
     <label class="lab">Reference types, one per line<textarea name="ref_types" rows="2" placeholder="Pastor or small group leader&#10;Employer, teacher or coach"><?= $v('ref_types') ?></textarea></label>
     <label class="lab">Thank-you message after they apply<textarea name="submitted_message" rows="2" placeholder="We got your application. We'll be in touch within two weeks."><?= $v('submitted_message') ?></textarea></label>

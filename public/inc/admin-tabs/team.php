@@ -26,8 +26,8 @@ $not_on = all('SELECT * FROM people WHERE id NOT IN (SELECT person_id FROM membe
             </div>
             <div class="actions"><button class="btn btn-dark" type="submit">Save</button></div>
           </form>
-          <form method="post" action="/action.php" onsubmit="return confirm('Remove from this trip?')" style="padding-top:8px;text-align:right">
-            <?= csrf() ?><input type="hidden" name="action" value="member_remove"><input type="hidden" name="id" value="<?= (int)$m['id'] ?>"><button class="link-btn danger" type="submit">Remove from trip</button>
+          <form method="post" action="/action.php" data-confirm="Remove <?= e(full_name($m)) ?> from this trip?" class="row-between" style="padding-top:8px">
+            <?= csrf() ?><input type="hidden" name="action" value="member_remove"><input type="hidden" name="id" value="<?= (int)$m['id'] ?>"><?php if ((float)$m['raised'] > 0): ?><label class="chk small"><input type="checkbox" name="move_gifts" value="1"> Move their gifts to the team</label><?php else: ?><span></span><?php endif; ?><button class="link-btn danger" type="submit">Remove from trip</button>
           </form>
         </details>
       </div>
@@ -54,9 +54,9 @@ $not_on = all('SELECT * FROM people WHERE id NOT IN (SELECT person_id FROM membe
         <label class="lab">Role<select name="role"><option value="traveler">Traveler</option><option value="leader">Leader</option><option value="admin">Trip admin</option></select></label>
         <label class="chk"><input type="checkbox" name="traveling" value="1" checked> Traveling with the team</label>
         <button class="btn btn-dark" type="submit">Add to team</button>
-        <div class="muted small">Soon this will search Planning Center and send an invite email.</div>
+        <div class="muted small">Tip: people already in Planning Center can be added from People → Add from Planning Center, so their details fill in.</div>
       </form>
     </div></details>
-    <section class="note"><strong>Roles</strong><div class="muted small">Trip admins see and change everything on this trip. Leaders see what you allow in Settings. Travelers only see their own information.</div></section>
+    <section class="note"><strong>Roles</strong><div class="muted small">Trip admins see and change everything on this trip. Leaders see what you allow in Settings → Leader permissions. Travelers only see their own information.</div></section>
   </aside>
 </div>

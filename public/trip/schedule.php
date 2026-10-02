@@ -18,7 +18,7 @@ $months = []; foreach ($events as $ev) $months[fdate($ev[0], 'F Y')][] = $ev;
 page_open('Schedule');
 member_header('schedule');
 ?>
-<main class="main m">
+<main class="main m" id="main">
   <div class="head">
     <div class="sub"><div class="muted" style="font-size:15px;font-weight:600"><?= e($t['name']) ?> · <?= e(date_range($t['start_date'], $t['end_date'])) ?></div><h1 class="disp">Schedule</h1></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/packet.php" target="_blank">Trip packet</a><a class="btn btn-primary" href="<?= e(cal_url('p', cal_token_for_person($me_id))) ?>">Add it all to my calendar</a></div>
@@ -36,7 +36,7 @@ member_header('schedule');
     <?= $byday ? '' : '<div class="group"><div class="empty">The day-by-day plan will show here.</div></div>' ?>
   </section>
 
-  <div class="split" style="grid-template-columns:minmax(0,1fr) 380px;gap:40px">
+  <div class="split side-380">
     <section style="display:flex;flex-direction:column;gap:24px">
     <?php foreach ($months as $label => $items): ?>
       <div><div class="gh"><?= e($label) ?></div><div class="group">
@@ -59,7 +59,7 @@ member_header('schedule');
         <?php if ($mem['confirmation']): ?><div><span class="muted small">Your confirmation</span><div class="disp" style="font-size:24px;letter-spacing:.02em"><?= e($mem['confirmation']) ?></div></div><?php else: ?><div class="muted small">Your confirmation number shows here once you're ticketed.</div><?php endif; ?>
         <a class="small" href="/trip/guide.php#airport">Where to meet at the airport ›</a>
       </section>
-      <section class="note"><strong>Your calendar, always current</strong><div class="muted">Soon you'll subscribe once and every meeting and deadline will show up in Apple, Google or Outlook Calendar.</div></section>
+      <section class="note"><strong>Your calendar, always current</strong><div class="muted">Tap "Add it all to my calendar" once and every meeting, flight and deadline shows up in Apple, Google or Outlook Calendar, and stays up to date.</div></section>
     </aside>
   </div>
 </main>

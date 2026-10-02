@@ -1,7 +1,7 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
 require dirname(__DIR__) . '/inc/member.php';
-$p = $me; $staff = false; $back = '/trip/profile.php';
+$p = $me; $staff = false; $back = '/trip/profile.php'; $self = !impersonating();
 page_open('My profile');
 member_header('');
 ?>

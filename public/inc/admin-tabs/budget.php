@@ -4,7 +4,7 @@ $rows = all('SELECT * FROM budget WHERE trip_id = ? ORDER BY est_date, id', [$id
 $n = max(1, count($trav));
 $total = trip_budget($id);
 $per = $total / $n;
-$types = ['Airfare', 'Lodging', 'Meals/Food', 'Transportation-Other', 'Taxes/Visas', 'Insurance', 'Supplies', 'Ministry', 'Debrief/Tourism', 'MISC'];
+$types = EXPENSE_TYPES;
 $budget_fields = function (array $b) use ($types) { ?>
   <label class="lab">What<input type="text" name="description" value="<?= e($b['description'] ?? '') ?>" required></label>
   <div class="r2"><label class="lab">Type<select name="type"><?php foreach ($types as $ty): ?><option<?= ($b['type'] ?? '') === $ty ? ' selected' : '' ?>><?= $ty ?></option><?php endforeach; ?></select></label><label class="lab">Vendor<input type="text" name="vendor" value="<?= e($b['vendor'] ?? '') ?>"></label></div>

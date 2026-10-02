@@ -1,10 +1,11 @@
-name: Deploy to missions.journeychurch.org
+name: Check and deploy missions.journeychurch.org
 
-# Every push to main uploads the public/ folder to SiteGround over encrypted FTP (FTPS).
-# Only changed files are sent. You can also run it by hand from the Actions tab.
+# Every push to main is checked first (syntax and a test run of the main pages). Only if the checks pass
+# is the public/ folder uploaded to SiteGround over encrypted FTP (FTPS). You can also run it by hand from the Actions tab.
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -12,14 +13,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: shivammathur/setup-php@c541c155eee45413f5b09a52248675b1a2575231 # 2.31.1
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, sodium, gd, curl, mbstring
+      - name: Syntax check every PHP file
+        run: find public -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run the smoke test (starts the site locally with sample data and opens every main page)
+        run: bash tests/smoke.sh
 
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Upload to SiteGround
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

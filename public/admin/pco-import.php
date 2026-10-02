@@ -1,6 +1,6 @@
 <?php
 require dirname(__DIR__) . '/inc/bootstrap.php';
-require_preview('staff');
+require_staff();
 $q = trim((string)($_GET['q'] ?? '')); $found = []; $err = '';
 if ($q !== '' && pco_api_ready()) { try { $found = pco_search($q); } catch (Throwable $e) { $err = $e->getMessage(); } }
 page_open('Add from Planning Center');
